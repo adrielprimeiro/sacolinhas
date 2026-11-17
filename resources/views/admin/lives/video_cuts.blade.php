@@ -227,17 +227,10 @@
                 </a>
             @endif
 
-            @if(!empty($tiktokAccount))
-                <button type="button" onclick="batchUploadToTikTok()" id="btn-tiktok-batch" class="bg-slate-900 hover:bg-black text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #0f172a; color: #ffffff !important;" title="Publicar todas as peças não-vendidas no TikTok '{{ $tiktokAccount->channel_name }}'">
-                    <i class="fab fa-tiktok text-white"></i>
-                    <span style="color: #ffffff !important; font-weight: 800;">Publicar TikTok</span>
-                </button>
-            @else
-                <a href="{{ route('admin.tiktok.connect') }}" class="bg-slate-900 hover:bg-black text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #0f172a; color: #ffffff !important;" title="Conectar Conta do TikTok para postar vídeos automaticamente">
-                    <i class="fab fa-tiktok text-white"></i>
-                    <span style="color: #ffffff !important; font-weight: 800;">Conectar TikTok</span>
-                </a>
-            @endif
+            <button type="button" onclick="openTikTokWebUploader()" id="btn-tiktok-batch" class="bg-slate-900 hover:bg-black text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #0f172a; color: #ffffff !important;" title="Abrir TikTok Web Creator para envio de vídeos">
+                <i class="fab fa-tiktok text-white"></i>
+                <span style="color: #ffffff !important; font-weight: 800;">TikTok Web</span>
+            </button>
 
             @if(!empty($instagramAccount))
                 <button type="button" onclick="batchUploadToInstagram()" id="btn-instagram-batch" class="hover:opacity-95 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: #ffffff !important;" title="Publicar todas as peças não-vendidas no Instagram Reels '{{ $instagramAccount->channel_name }}'">
@@ -864,19 +857,20 @@
                                             </button>
                                         @endif
 
-                                        @if(!empty($item['tiktok_publish_id']))
+                                        @if(!empty($item['tiktok_publish_id']) || ($item['tiktok_status'] ?? '') === 'published')
                                             <a href="{{ $item['tiktok_url'] ?: 'https://www.tiktok.com' }}" 
                                                target="_blank" 
                                                title="Publicado no TikTok" 
                                                class="bg-slate-900 hover:bg-black text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" 
                                                style="background-color: #0f172a; color: #ffffff !important;">
                                                 <i class="fab fa-tiktok text-white"></i>
+                                                <span class="text-[9px] bg-emerald-600 px-1 py-0.5 rounded font-black text-white">✓</span>
                                             </a>
                                         @else
                                             <button type="button" 
                                                     onclick="uploadCutToTikTok({{ $item['live_item_id'] }})" 
                                                     id="btn-tiktok-{{ $item['live_item_id'] }}" 
-                                                    title="Publicar este corte no TikTok" 
+                                                    title="Publicar este corte no TikTok via Navegador" 
                                                     class="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 p-2 rounded-xl text-xs transition shadow-xs cursor-pointer active:scale-95">
                                                 <i class="fab fa-tiktok text-slate-900"></i>
                                             </button>
@@ -977,22 +971,12 @@
     <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl text-gray-800 animate-in fade-in zoom-in-95 duration-150">
         <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
             <div>
-                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-200">Passo 1 de 4</span>
+                <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200">Automação 1 a 5</span>
                 <h3 class="text-lg font-black text-gray-900 flex items-center gap-2 mt-1">
-                    <i class="fas fa-video text-amber-600"></i> Passo 1: Baixar / Carregar Vídeo
+                    <i class="fas fa-video text-indigo-600"></i> 1. Vídeo da Live & Automação Completa
                 </h3>
             </div>
             <button type="button" onclick="toggleUploadModal(false)" class="text-gray-400 hover:text-gray-700 text-2xl font-bold cursor-pointer leading-none">&times;</button>
-        </div>
-
-        <div class="mb-4 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-950 font-medium">
-            <p class="font-bold flex items-center gap-1.5 text-amber-900">
-                <i class="fas fa-info-circle text-amber-600"></i> Somente Gravação do Vídeo:
-            </p>
-            <p class="mt-1 text-amber-950 text-[11px] leading-relaxed">
-                Este passo realiza <strong>APENAS</strong> o download do link ou upload do arquivo de gravação completa para o servidor. 
-                <strong>Não executa transcrição nem gera cortes automaticamente.</strong>
-            </p>
         </div>
 
         @if(!empty($recordingUrl))
@@ -1018,16 +1002,57 @@
                         <i class="fas fa-paste"></i> Colar do Teclado
                     </button>
                 </label>
-                <input 
-                    type="text" 
-                    id="video-path-manual-input" 
-                    name="video_path_manual" 
-                    onblur="this.value = sanitizeInstagramUrl(this.value)"
-                    onpaste="setTimeout(() => this.value = sanitizeInstagramUrl(this.value), 20)"
-                    placeholder="Ex: https://www.instagram.com/reel/DefqY4pEZug/..." 
-                    class="w-full px-3.5 py-2 text-xs bg-white text-gray-900 rounded-xl border border-gray-300 focus:border-indigo-600 font-medium outline-none transition"
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="video-path-manual-input" 
+                        name="video_path_manual" 
+                        onblur="this.value = sanitizeInstagramUrl(this.value)"
+                        onpaste="setTimeout(() => this.value = sanitizeInstagramUrl(this.value), 20)"
+                        onkeydown="if(event.key === 'Enter') { event.preventDefault(); startFullPipelineFromStep1(); }"
+                        placeholder="Ex: https://www.instagram.com/p/DfYZ6hOkTWy/" 
+                        class="w-full pl-3.5 pr-10 py-2.5 text-xs bg-white text-gray-900 rounded-xl border-2 border-indigo-400 focus:border-indigo-600 font-medium outline-none transition shadow-xs"
+                    >
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-pink-600">
+                        <i class="fab fa-instagram text-base"></i>
+                    </div>
+                </div>
+                <p class="text-[11px] text-gray-600 mt-1 font-medium">Cole a URL pública do post/vídeo postado no Instagram para processar.</p>
+
+                <div class="mt-2.5 pt-2 border-t border-indigo-100 flex items-center gap-2">
+                    <input type="checkbox" id="force-reprocess-check-step1" name="force_step1" class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer" checked>
+                    <label for="force-reprocess-check-step1" class="text-xs font-semibold text-gray-800 cursor-pointer select-none">
+                        Substituir gravação anterior e refazer todo o processo do zero (download, transcrição e cortes)
+                    </label>
+                </div>
+            </div>
+
+            <!-- CARD DE AÇÃO PRINCIPAL: AUTOMAÇÃO COMPLETA DAS FASES 1 A 5 -->
+            <div class="p-4 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 border-2 border-indigo-400 rounded-2xl space-y-2.5 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-xs font-black text-indigo-950">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black" style="background-color: #4f46e5; color: #ffffff !important;">🚀</span>
+                        <span>Automação Completa (Fases 1, 2, 3, 4 e 5)</span>
+                    </div>
+                    <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-600 text-white" style="background-color: #4f46e5; color: #ffffff !important;">Mais Rápido • Paralelo</span>
+                </div>
+                <div class="text-[11px] text-gray-800 space-y-1 font-medium leading-relaxed">
+                    <p class="flex items-center gap-1.5"><i class="fas fa-check-circle text-emerald-600"></i> <strong>1. Vídeo:</strong> Baixa a gravação em alta resolução via yt-dlp.</p>
+                    <p class="flex items-center gap-1.5"><i class="fas fa-check-circle text-emerald-600"></i> <strong>2. Whisper IA:</strong> Transcreve áudio com blocos paralelos.</p>
+                    <p class="flex items-center gap-1.5"><i class="fas fa-check-circle text-emerald-600"></i> <strong>3. Minutagem:</strong> Mapeia as peças da live com Severino IA.</p>
+                    <p class="flex items-center gap-1.5"><i class="fas fa-check-circle text-emerald-600"></i> <strong>4. Fatiamento:</strong> Gera cortes FFmpeg em paralelo (2 workers).</p>
+                    <p class="flex items-center gap-1.5"><i class="fas fa-check-circle text-emerald-600"></i> <strong>5. Edição:</strong> Aplica selo de estado e marca d'água em paralelo.</p>
+                </div>
+                <button 
+                    type="button" 
+                    id="btn-auto-process-step1" 
+                    onclick="startFullPipelineFromStep1()" 
+                    class="w-full py-3 px-4 rounded-xl text-xs font-black text-white shadow-md flex items-center justify-center gap-2 cursor-pointer transition active:scale-95" 
+                    style="background-color: #4f46e5; color: #ffffff !important;"
                 >
-                <p class="text-[11px] text-gray-600 mt-1">Cole a URL pública do post/vídeo postado no Instagram para baixar via yt-dlp.</p>
+                    <i class="fas fa-bolt text-white"></i>
+                    <span style="color: #ffffff !important; font-weight: 900;">Processar Tudo Automático (Fases 1 a 5)</span>
+                </button>
             </div>
 
             <div class="relative flex py-1 items-center">
@@ -1051,11 +1076,11 @@
                 </div>
             </div>
 
-            <div class="pt-3 flex justify-end gap-2 border-t border-gray-200">
-                <button type="button" onclick="toggleUploadModal(false)" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition cursor-pointer">Cancelar</button>
-                <button type="submit" id="btn-submit-upload" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-extrabold transition shadow flex items-center gap-1.5 cursor-pointer" style="background-color: #4f46e5; color: #ffffff !important;">
+            <div class="pt-3 flex justify-between items-center border-t border-gray-200">
+                <button type="button" onclick="toggleUploadModal(false)" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition cursor-pointer">Fechar</button>
+                <button type="submit" id="btn-submit-upload" class="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer" style="background-color: #374151; color: #ffffff !important;" title="Apenas faz o download/upload da gravação sem fatiar ou editar">
                     <i class="fas fa-download text-white"></i>
-                    <span class="text-white font-black">Baixar / Salvar Vídeo (Passo 1)</span>
+                    <span class="text-white">Apenas Baixar Vídeo (Passo 1)</span>
                 </button>
             </div>
         </form>
@@ -1894,6 +1919,13 @@
                 <p class="text-[11px] text-gray-600 mt-1.5">
                     Cole o link do Reel/Live postado no Instagram. Se o vídeo já estiver carregado nesta página, pode deixar em branco.
                 </p>
+
+                <div class="mt-3 pt-2.5 border-t border-gray-100 flex items-center gap-2">
+                    <input type="checkbox" id="force-reprocess-check" name="force" class="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
+                    <label for="force-reprocess-check" class="text-xs font-semibold text-gray-700 cursor-pointer select-none">
+                        Substituir gravação anterior e refazer todo o processo do zero (download, transcrição e cortes)
+                    </label>
+                </div>
             </div>
 
             <div class="pt-3 flex justify-end gap-2.5 border-t border-gray-200">
@@ -2397,25 +2429,60 @@
                     if (pctEl) pctEl.textContent = `${progress}%`;
                     if (barEl) barEl.style.width = `${progress}%`;
 
-                    // Atualiza visualmente o Stepper no topo (Passo 2 ou 3)
+                    // Atualiza visualmente o Stepper no topo (Passos 1 a 5)
                     const msg = (data.message || '').toLowerCase();
+                    const isStep1 = msg.includes('baixando') || msg.includes('download') || progress <= 20;
                     const isStep2 = msg.includes('transcri') || msg.includes('whisper') || msg.includes('áudio') || msg.includes('audio');
+                    const isStep3 = msg.includes('minut') || msg.includes('detectando');
+                    const isStep4 = msg.includes('fatia') || msg.includes('corte');
+                    const isStep5 = msg.includes('selo') || msg.includes('marca') || msg.includes('edição') || msg.includes('edicao');
+
+                    const b1 = document.getElementById("stepper-badge-1");
+                    const s1 = document.getElementById("stepper-status-1");
+                    const b2 = document.getElementById("stepper-badge-2");
+                    const s2 = document.getElementById("stepper-status-2");
+                    const b3 = document.getElementById("stepper-badge-3");
+                    const s3 = document.getElementById("stepper-status-3");
+                    const b4 = document.getElementById("stepper-badge-4");
+                    const s4 = document.getElementById("stepper-status-4");
+                    const b5 = document.getElementById("stepper-badge-5");
+                    const s5 = document.getElementById("stepper-status-5");
+
+                    if (isStep1) {
+                        if (b1) { b1.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; b1.style.backgroundColor = '#d97706'; }
+                        if (s1) { s1.innerHTML = `⚡ Baixando ${progress}%`; s1.style.color = '#b45309'; }
+                    } else if (progress >= 20) {
+                        if (b1) { b1.innerHTML = '<i class="fas fa-check"></i>'; b1.style.backgroundColor = '#16a34a'; }
+                        if (s1) { s1.innerHTML = '✓ Gravado'; s1.style.color = '#15803d'; }
+                    }
+
                     if (isStep2) {
-                        const b2 = document.getElementById("stepper-badge-2");
-                        const s2 = document.getElementById("stepper-status-2");
-                        if (b2) b2.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        if (s2) {
-                            s2.innerHTML = `⚡ Transcrevendo ${progress}%`;
-                            s2.style.color = '#0f766e';
-                        }
-                    } else {
-                        const b3 = document.getElementById("stepper-badge-3");
-                        const s3 = document.getElementById("stepper-status-3");
-                        if (b3) b3.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                        if (s3) {
-                            s3.innerHTML = `⚡ Minutando ${progress}%`;
-                            s3.style.color = '#7e22ce';
-                        }
+                        if (b2) { b2.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; b2.style.backgroundColor = '#0d9488'; }
+                        if (s2) { s2.innerHTML = `⚡ Transcrevendo ${progress}%`; s2.style.color = '#0f766e'; }
+                    } else if (progress >= 65) {
+                        if (b2) { b2.innerHTML = '<i class="fas fa-check"></i>'; b2.style.backgroundColor = '#16a34a'; }
+                        if (s2) { s2.innerHTML = '✓ Transcrito'; s2.style.color = '#15803d'; }
+                    }
+
+                    if (isStep3) {
+                        if (b3) { b3.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; b3.style.backgroundColor = '#9333ea'; }
+                        if (s3) { s3.innerHTML = `⚡ Minutando ${progress}%`; s3.style.color = '#7e22ce'; }
+                    } else if (progress >= 75) {
+                        if (b3) { b3.innerHTML = '<i class="fas fa-check"></i>'; b3.style.backgroundColor = '#16a34a'; }
+                        if (s3) { s3.innerHTML = '✓ Minutado'; s3.style.color = '#15803d'; }
+                    }
+
+                    if (isStep4) {
+                        if (b4) { b4.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; b4.style.backgroundColor = '#2563eb'; }
+                        if (s4) { s4.innerHTML = `⚡ Fatiando ${progress}%`; s4.style.color = '#1d4ed8'; }
+                    } else if (progress >= 89) {
+                        if (b4) { b4.innerHTML = '<i class="fas fa-check"></i>'; b4.style.backgroundColor = '#16a34a'; }
+                        if (s4) { s4.innerHTML = '✓ Fatiado'; s4.style.color = '#15803d'; }
+                    }
+
+                    if (isStep5) {
+                        if (b5) { b5.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; b5.style.backgroundColor = '#9333ea'; }
+                        if (s5) { s5.innerHTML = `⚡ Editando ${progress}%`; s5.style.color = '#7e22ce'; }
                     }
                 } else if (data.status === 'completed') {
                     clearInterval(transcribePollTimer);
@@ -2423,6 +2490,12 @@
                     if (barEl) barEl.style.width = '100%';
                     const textEl = document.getElementById("ai-process-text");
                     if (textEl) textEl.textContent = '✅ ' + (data.message || 'Processamento IA concluído com sucesso! Recarregando...');
+
+                    ['1', '2', '3', '4', '5'].forEach(num => {
+                        const badge = document.getElementById(`stepper-badge-${num}`);
+                        if (badge) { badge.innerHTML = '<i class="fas fa-check"></i>'; badge.style.backgroundColor = '#16a34a'; }
+                    });
+
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
@@ -4512,18 +4585,50 @@
         toggleAutoProcessModal(true);
     }
 
-    async function submitAutoProcess(event) {
-        if (event) event.preventDefault();
+    function startFullPipelineFromStep1() {
+        const input = document.getElementById("video-path-manual-input");
+        let videoUrl = input ? sanitizeInstagramUrl(input.value.trim()) : '';
+        if (!videoUrl) {
+            alert("Por favor, cole o link do vídeo do Instagram para iniciar o processamento completo das Fases 1 a 5.");
+            input?.focus();
+            return;
+        }
 
-        const inputUrl = document.getElementById("auto-process-url-input");
-        let videoUrl = inputUrl ? sanitizeInstagramUrl(inputUrl.value) : '';
-        if (inputUrl && videoUrl) inputUrl.value = videoUrl;
+        const forceCheck = document.getElementById("force-reprocess-check-step1");
+        const force = forceCheck ? forceCheck.checked : true;
 
+        // Fecha o modal do Passo 1
+        toggleUploadModal(false);
+
+        // Preenche também o campo do modal auto-process se existir
+        const inputAuto = document.getElementById("auto-process-url-input");
+        if (inputAuto) inputAuto.value = videoUrl;
+
+        // Dispara a automação completa
+        triggerFullAutoPipeline(videoUrl, force);
+    }
+
+    async function triggerFullAutoPipeline(videoUrl = null, force = false) {
+        if (!videoUrl) {
+            const inputUrl = document.getElementById("auto-process-url-input") || document.getElementById("video-path-manual-input");
+            videoUrl = inputUrl ? sanitizeInstagramUrl(inputUrl.value.trim()) : '';
+        }
+        if (!force) {
+            const forceCheck = document.getElementById("force-reprocess-check");
+            if (forceCheck && forceCheck.checked) force = true;
+        }
+
+        const btnStep1 = document.getElementById("btn-auto-process-step1");
         const btnSubmit = document.getElementById("btn-submit-auto-process");
         const btnTop = document.getElementById("btn-auto-process");
+        const oldStep1Html = btnStep1 ? btnStep1.innerHTML : '';
         const oldSubmitHtml = btnSubmit ? btnSubmit.innerHTML : '';
         const oldTopHtml = btnTop ? btnTop.innerHTML : '';
 
+        if (btnStep1) {
+            btnStep1.disabled = true;
+            btnStep1.innerHTML = `<i class="fas fa-spinner fa-spin text-white mr-1"></i> Iniciando Fases 1 a 5...`;
+        }
         if (btnSubmit) {
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = `<i class="fas fa-spinner fa-spin text-white mr-1"></i> Iniciando...`;
@@ -4540,12 +4645,18 @@
         const progressBar = document.getElementById("ai-process-bar");
         if (progressBox) {
             progressBox.classList.remove("hidden");
-            if (progressText) progressText.textContent = videoUrl ? "Baixando vídeo da publicação do Instagram..." : "Verificando gravação e áudio...";
+            if (progressText) progressText.textContent = videoUrl ? "Baixando vídeo da gravação do Instagram (Passo 1)..." : "Iniciando processamento das Fases 1 a 5...";
             if (progressPct) progressPct.textContent = "5%";
             if (progressBar) progressBar.style.width = "5%";
         }
 
-        // Fecha o modal
+        // Atualiza Stepper 1 imediatamente
+        const b1 = document.getElementById("stepper-badge-1");
+        const s1 = document.getElementById("stepper-status-1");
+        if (b1) { b1.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; b1.style.backgroundColor = '#d97706'; }
+        if (s1) { s1.innerHTML = '⚡ Baixando...'; s1.style.color = '#b45309'; }
+
+        // Fecha o modal auto-process se estiver aberto
         toggleAutoProcessModal(false);
 
         try {
@@ -4558,11 +4669,16 @@
                 },
                 body: JSON.stringify({ 
                     username: 'de_minha_mania',
-                    url: videoUrl || undefined
+                    url: videoUrl || undefined,
+                    force: force ? true : undefined
                 })
             });
             const data = await res.json();
             
+            if (btnStep1) {
+                btnStep1.disabled = false;
+                btnStep1.innerHTML = oldStep1Html;
+            }
             if (btnSubmit) {
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = oldSubmitHtml;
@@ -4572,21 +4688,47 @@
                 btnTop.innerHTML = oldTopHtml;
             }
 
-            if (data.is_async) {
+            if (data.already_completed) {
+                if (progressBox) progressBox.classList.add("hidden");
+                [1, 2, 3, 4, 5].forEach(step => {
+                    const badge = document.getElementById(`stepper-badge-${step}`);
+                    const status = document.getElementById(`stepper-status-${step}`);
+                    if (badge) {
+                        badge.innerHTML = '<i class="fas fa-check text-white"></i>';
+                        badge.style.backgroundColor = '#059669';
+                    }
+                    if (status) {
+                        status.innerHTML = '✓ Concluído';
+                        status.style.color = '#047857';
+                    }
+                });
+
+                if (window.Swal) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Tudo já está executado!',
+                        html: `<div class="text-sm font-semibold text-gray-800">${data.message}</div>`,
+                        confirmButtonText: 'Entendido',
+                        confirmButtonColor: '#4f46e5'
+                    });
+                } else {
+                    alert('✅ ' + data.message);
+                }
+                return;
+            }
+
+            if (data.is_async || data.success) {
+                if (progressText && data.message) progressText.textContent = data.message;
                 startTranscriptionPolling();
-            } else if (data.success) {
-                if (progressText) progressText.textContent = "✅ " + data.message;
-                if (progressPct) progressPct.textContent = "100%";
-                if (progressBar) progressBar.style.width = "100%";
-                setTimeout(() => {
-                    alert("✅ " + data.message);
-                    window.location.reload();
-                }, 1000);
             } else {
                 if (progressBox) progressBox.classList.add("hidden");
                 alert("⚠️ " + (data.message || 'Falha no processamento automático.'));
             }
         } catch(e) {
+            if (btnStep1) {
+                btnStep1.disabled = false;
+                btnStep1.innerHTML = oldStep1Html;
+            }
             if (btnSubmit) {
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = oldSubmitHtml;
@@ -4598,6 +4740,13 @@
             if (progressBox) progressBox.classList.add("hidden");
             alert("Erro de comunicação ao disparar o processamento: " + e.message);
         }
+    }
+
+    async function submitAutoProcess(event) {
+        if (event) event.preventDefault();
+        const inputUrl = document.getElementById("auto-process-url-input");
+        let videoUrl = inputUrl ? sanitizeInstagramUrl(inputUrl.value.trim()) : '';
+        triggerFullAutoPipeline(videoUrl);
     }
 
     // ===== INTEGRAÇÃO YOUTUBE SHORTS =====
@@ -4708,15 +4857,11 @@
         }
     }
 
-    async function uploadCutToTikTok(itemId) {
-        const isConnected = {{ !empty($tiktokAccount) ? 'true' : 'false' }};
-        if (!isConnected) {
-            if (confirm("Você precisa conectar a conta do TikTok primeiro. Deseja conectar agora?")) {
-                window.location.href = "{{ route('admin.tiktok.connect') }}";
-            }
-            return;
-        }
+    function openTikTokWebUploader() {
+        window.open('https://www.tiktok.com/creator-center/upload', '_blank');
+    }
 
+    async function uploadCutToTikTok(itemId) {
         const btn = document.getElementById(`btn-tiktok-${itemId}`);
         const oldHtml = btn ? btn.innerHTML : '';
         if (btn) {
@@ -4725,90 +4870,73 @@
         }
 
         try {
-            const res = await fetch(`{{ url('admin/tiktok/upload-cut') }}/${itemId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ privacy: 'PUBLIC_TO_EVERYONE' })
-            });
-            const data = await res.json();
+            const resp = await fetch(`/admin/tiktok/prepare-web-upload/${itemId}`);
+            const data = await resp.json();
 
-            if (data.success) {
-                if (btn) {
-                    btn.outerHTML = `
-                        <a href="https://www.tiktok.com" target="_blank" title="Vídeo Publicado no TikTok" class="bg-slate-900 hover:bg-black text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" style="background-color: #0f172a; color: #ffffff !important;">
-                            <i class="fab fa-tiktok text-white"></i>
-                        </a>
-                    `;
-                }
-                alert("✅ " + data.message);
-            } else {
+            if (!data.success) {
+                alert(data.message || 'Erro ao preparar vídeo para o TikTok.');
                 if (btn) {
                     btn.disabled = false;
                     btn.innerHTML = oldHtml;
                 }
-                alert("⚠️ " + (data.message || 'Falha no upload para o TikTok.'));
+                return;
             }
-        } catch(e) {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = oldHtml;
+
+            // 1. Copia legenda automaticamente para a área de transferência
+            let copied = false;
+            try {
+                await navigator.clipboard.writeText(data.caption);
+                copied = true;
+            } catch(e) {
+                console.warn('Clipboard error:', e);
             }
-            alert("Erro ao enviar para o TikTok: " + e.message);
-        }
-    }
 
-    async function batchUploadToTikTok() {
-        const isConnected = {{ !empty($tiktokAccount) ? 'true' : 'false' }};
-        if (!isConnected) {
-            if (confirm("Você precisa conectar a conta do TikTok primeiro. Deseja conectar agora?")) {
-                window.location.href = "{{ route('admin.tiktok.connect') }}";
-            }
-            return;
-        }
+            // 2. Dispara download do arquivo de vídeo local
+            const downloadLink = document.createElement('a');
+            downloadLink.href = data.video_url;
+            downloadLink.download = data.filename || `corte_tiktok_${data.code || itemId}.mp4`;
+            downloadLink.target = '_blank';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
 
-        if (!confirm("Deseja publicar automaticamente todas as peças NÃO VENDIDAS no TikTok?")) {
-            return;
-        }
+            // 3. Abre a página de upload do TikTok Web no navegador
+            window.open(data.upload_url || 'https://www.tiktok.com/creator-center/upload', '_blank');
 
-        const btn = document.getElementById('btn-tiktok-batch');
-        const oldHtml = btn ? btn.innerHTML : '';
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i> Publicando...';
-        }
-
-        try {
-            const res = await fetch(`{{ url('admin/lives/' . $live->id . '/tiktok/batch-upload') }}`, {
+            // 4. Marca como publicado / enviado
+            fetch(`/admin/tiktok/mark-published/${itemId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
                     'Accept': 'application/json'
                 }
-            });
-            const data = await res.json();
+            }).catch(() => {});
 
+            // 5. Atualiza o visual do botão
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = oldHtml;
+                btn.outerHTML = `
+                    <a href="https://www.tiktok.com" target="_blank" title="Corte Enviado ao TikTok (Abrir Perfil)" class="bg-slate-900 hover:bg-black text-white font-bold p-2 rounded-xl text-xs transition shadow-sm cursor-pointer flex items-center gap-1" style="background-color: #0f172a; color: #ffffff !important;">
+                        <i class="fab fa-tiktok text-white"></i>
+                        <span class="text-[9px] bg-emerald-600 px-1 py-0.5 rounded font-black text-white">✓</span>
+                    </a>
+                `;
             }
 
-            if (data.success) {
-                alert("🚀 " + data.message);
-            } else {
-                alert("⚠️ " + (data.message || 'Falha ao iniciar publicação em lote no TikTok.'));
-            }
+            alert("🎬 Vídeo baixado e página do TikTok aberta no navegador!\n\n📋 A legenda já foi copiada para sua área de transferência!\n\n👉 Basta arrastar o vídeo para o TikTok e colar a legenda (Ctrl + V) para publicar para todo o público!");
         } catch(e) {
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = oldHtml;
             }
-            alert("Erro de comunicação: " + e.message);
+            alert("Erro ao preparar postagem do TikTok: " + e.message);
         }
+    }
+
+    async function batchUploadToTikTok() {
+        openTikTokWebUploader();
+        alert("🌐 Página do TikTok Creator Center aberta em nova aba!\n\nVocê pode arrastar múltiplos vídeos baixados de uma vez para publicar.");
     }
 
     async function uploadCutToInstagram(itemId) {

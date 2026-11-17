@@ -737,35 +737,76 @@ class LiveVideoCutsController extends Controller
             }
         }
 
-        // Se já está processando, retorna status sem disparar novos processos concorrentes
         $statusKey = "live_transcription_status_{$liveId}";
-        $currentStatus = \Illuminate\Support\Facades\Cache::get($statusKey);
-        if ($currentStatus && ($currentStatus['status'] ?? '') === 'processing' && ($currentStatus['progress'] ?? 0) >= 15) {
+
+        $lastSourceUrl = \Illuminate\Support\Facades\Cache::get("live_{$liveId}_source_url");
+        $force = $request->boolean('force') || ($url && $lastSourceUrl && $url !== $lastSourceUrl);
+
+        // Diagnóstico Inteligente: verifica se tudo ou parte já foi executado
+        $processor = app(\App\Services\LiveVideoAutoProcessorService::class);
+        $summary = $processor->getPipelineSummary($live, $url);
+
+        if (!$force && $summary['is_all_completed']) {
+            $msg = "Esta live já está 100% processada! Todos os {$summary['total_items']} cortes já foram fatiados e editados com selo e marca d'água.";
+
+            \Illuminate\Support\Facades\Cache::put($statusKey, [
+                'status' => 'completed',
+                'progress' => 100,
+                'message' => $msg
+            ], 3600);
+
             return response()->json([
                 'success' => true,
-                'is_async' => true,
-                'message' => 'O processamento desta live já está em andamento (' . ($currentStatus['progress'] ?? 0) . '%: ' . ($currentStatus['message'] ?? '') . ').',
-                'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId])
+                'already_completed' => true,
+                'message' => $msg,
+                'summary' => $summary
             ]);
         }
 
+        // Se já está processando em segundo plano, retorna status sem disparar novos processos concorrentes
+        $currentStatus = \Illuminate\Support\Facades\Cache::get($statusKey);
+        if ($currentStatus && ($currentStatus['status'] ?? '') === 'processing') {
+            return response()->json([
+                'success' => true,
+                'is_async' => true,
+                'in_progress' => true,
+                'message' => 'O processamento desta live já está em andamento (' . ($currentStatus['progress'] ?? 0) . '%: ' . ($currentStatus['message'] ?? '') . ').',
+                'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId]),
+                'summary' => $summary
+            ]);
+        }
+
+        $initialPct = 5;
+        if ($summary['phase3']['done']) {
+            $initialPct = 75;
+        } elseif ($summary['phase2']['done']) {
+            $initialPct = 70;
+        } elseif ($summary['phase1']['done']) {
+            $initialPct = 20;
+        }
+
+        $pendingDesc = !empty($summary['pending_steps']) ? implode(', ', $summary['pending_steps']) : 'cortes pendentes';
+        $initialMsg = "Iniciando processamento inteligente: executando " . $pendingDesc;
+
         \Illuminate\Support\Facades\Cache::put($statusKey, [
             'status' => 'processing',
-            'progress' => 5,
-            'message' => 'Iniciando verificação e download do vídeo da live...'
+            'progress' => $initialPct,
+            'message' => $initialMsg
         ], 3600);
 
         $artisan = base_path('artisan');
         $urlArg = $url ? sprintf('--url=%s', escapeshellarg($url)) : '';
         $userArg = sprintf('--username=%s', escapeshellarg($username));
-        $cmd = sprintf('nohup php %s app:auto-process-live-video --live_id=%d %s %s > /dev/null 2>&1 &', escapeshellarg($artisan), $liveId, $userArg, $urlArg);
+        $forceArg = $force ? '--force' : '';
+        $cmd = sprintf('nohup php %s app:auto-process-live-video --live_id=%d %s %s %s > /dev/null 2>&1 &', escapeshellarg($artisan), $liveId, $userArg, $urlArg, $forceArg);
         exec($cmd);
 
         return response()->json([
             'success' => true,
             'is_async' => true,
-            'message' => 'Processamento automático iniciado em segundo plano!',
-            'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId])
+            'message' => $initialMsg,
+            'status_url' => route('admin.lives.cortes.transcribe-status', ['liveId' => $liveId]),
+            'summary' => $summary
         ]);
     }
 
@@ -2946,7 +2987,7 @@ PROMPT;
         }
 
         $finalStatus = 'recorded';
-        if ($request->boolean('apply_edition', false) || $wasAlreadyEdited) {
+        if ($request->boolean('apply_edition', false)) {
             $editionRes = $this->applyEdition($request, $liveId, $liveItemId);
             $editionData = $editionRes->getData(true);
             if (!empty($editionData['success']) && !empty($editionData['video_url'])) {
@@ -3254,6 +3295,7 @@ PROMPT;
                     'media_type' => 'video'
                 ],
                 [
+                    'url' => $liveItem->video_cut_path ?: '',
                     'thumbnail_url' => $cleanPath
                 ]
             );
@@ -3329,6 +3371,7 @@ PROMPT;
                     'media_type' => 'video'
                 ],
                 [
+                    'url' => $liveItem->video_cut_path ?: '',
                     'thumbnail_url' => $primary['path']
                 ]
             );
@@ -3427,6 +3470,7 @@ PROMPT;
                     'media_type' => 'video'
                 ],
                 [
+                    'url' => $liveItem->video_cut_path ?: '',
                     'thumbnail_url' => $relativeThumbPath
                 ]
             );
