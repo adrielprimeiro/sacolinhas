@@ -247,11 +247,17 @@ class User extends Authenticatable
 				'description' => 'Painel do Clube, Mensalidades, Desafios e Grupos',
 				'entry_url' => '/admin/clube',
 			],
-			'relatorios' => [
-				'label' => 'Relatórios & Inteligência Artificial',
-				'icon' => 'fas fa-chart-pie',
-				'description' => 'Relatório ODS, Relatório de Clientes, Acessos ao Portal, Severino AI e Base de Conhecimento (RAG)',
+			'ods' => [
+				'label' => 'Relatório ODS (Novos Clientes & Faturamento)',
+				'icon' => 'fas fa-bullseye',
+				'description' => 'Página exclusiva de Novos Clientes e Faturamento no intervalo de tempo',
 				'entry_url' => '/admin/relatorios/ods',
+			],
+			'relatorios' => [
+				'label' => 'Demais Relatórios & Inteligência Artificial',
+				'icon' => 'fas fa-chart-pie',
+				'description' => 'Relatório de Clientes, Acessos ao Portal, Severino AI e Base de Conhecimento (RAG)',
+				'entry_url' => '/admin/clientes/relatorios/dashboard',
 			],
 		];
 	}
@@ -278,7 +284,7 @@ class User extends Authenticatable
 		}
 
 		if ($this->isBrechoParceiro()) {
-			$restrictedForBrecho = ['financeiro', 'avaliacoes', 'clube', 'relatorios'];
+			$restrictedForBrecho = ['financeiro', 'avaliacoes', 'clube', 'ods', 'relatorios'];
 			if (in_array($module, $restrictedForBrecho, true)) {
 				return 'none';
 			}
@@ -304,6 +310,11 @@ class User extends Authenticatable
 		// Se for admin/parceiro sem permissões customizadas salvas (legado), mantém acesso de escrita
 		if (!$this->hasCustomPermissions()) {
 			return 'write';
+		}
+
+		if ($module === 'ods' && !array_key_exists('ods', $this->permissions)) {
+			$level = $this->permissions['relatorios'] ?? 'none';
+			return in_array($level, ['none', 'read', 'write'], true) ? $level : 'none';
 		}
 
 		$level = $this->permissions[$module] ?? 'none';
@@ -365,7 +376,14 @@ class User extends Authenticatable
 			return 'dashboard';
 		}
 
-		// 2. Relatórios & IA (deve vir antes de admin/clientes* e admin/severino/cliper*)
+		// 2. Relatório ODS (exclusivo)
+		if (\Illuminate\Support\Str::is([
+			'admin/relatorios/ods*',
+		], $cleanPath)) {
+			return 'ods';
+		}
+
+		// 3. Demais Relatórios & IA (deve vir antes de admin/clientes* e admin/severino/cliper*)
 		if (\Illuminate\Support\Str::is([
 			'admin/relatorios*',
 			'admin/clientes/relatorios*',

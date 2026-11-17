@@ -217,6 +217,11 @@
             </div>
         </div>
 
+        @php
+            $canVerCliente  = auth()->check() && auth()->user()->canAccessModule('clientes');
+            $canVerSacola   = auth()->check() && auth()->user()->canAccessModule('sacolinhas');
+            $mostrarColAcoes = $canVerCliente || $canVerSacola;
+        @endphp
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -227,7 +232,9 @@
                         <th class="px-5 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Pedidos Fechados</th>
                         <th class="px-5 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Sacolinha Ativa</th>
                         <th class="px-5 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Faturamento Total</th>
+                        @if($mostrarColAcoes)
                         <th class="px-5 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Ações</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -311,14 +318,17 @@
                             </td>
 
                             <!-- Ações -->
+                            @if($mostrarColAcoes)
                             <td class="px-5 py-3.5 whitespace-nowrap text-center text-xs">
                                 <div class="inline-flex items-center gap-1.5">
+                                    @if($canVerCliente)
                                     <a href="{{ route('admin.clientes.show', $cli->id) }}"
                                        class="px-2.5 py-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold border border-gray-300"
                                        title="Ver Ficha do Cliente">
                                         <i class="fas fa-user mr-1"></i> Ficha
                                     </a>
-                                    @if($cli->qtd_sacola > 0)
+                                    @endif
+                                    @if($canVerSacola && $cli->qtd_sacola > 0)
                                         <a href="{{ route('admin.sacolinha.show', $cli->id) }}"
                                            class="px-2.5 py-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold border border-indigo-200"
                                            title="Ver Sacolinha">
@@ -327,10 +337,11 @@
                                     @endif
                                 </div>
                             </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-10 text-center text-gray-500">
+                            <td colspan="{{ $mostrarColAcoes ? 7 : 6 }}" class="px-6 py-10 text-center text-gray-500">
                                 <i class="fas fa-calendar-times text-2xl text-gray-400 mb-2 block"></i>
                                 Nenhum novo cliente cadastrado entre <strong>{{ \Carbon\Carbon::parse($dataInicio)->format('d/m/Y') }}</strong> e <strong>{{ \Carbon\Carbon::parse($dataFim)->format('d/m/Y') }}</strong>.
                             </td>

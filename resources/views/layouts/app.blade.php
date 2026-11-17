@@ -42,9 +42,12 @@
 				@php
 					$brandRoute = trim($__env->yieldContent('brand_route', 'dashboard'));
 					$brandIcon  = trim($__env->yieldContent('brand_icon', 'fas fa-layer-group'));
+					$homeUrl    = (auth()->check() && method_exists(auth()->user(), 'firstAccessibleAdminUrl'))
+						? auth()->user()->firstAccessibleAdminUrl()
+						: route($brandRoute);
 				@endphp
 
-				<a href="{{ route($brandRoute) }}"
+				<a href="{{ $homeUrl }}"
 				   class="text-2xl font-bold text-gray-800 hover:text-blue-600 transition duration-300">
 					<i class="{{ $brandIcon }} mr-1"></i>@yield('title', 'Admin')
 				</a>
@@ -57,7 +60,7 @@
 							<i class="fas fa-store mr-1.5 text-indigo-500"></i>{{ auth()->user()->brecho->nome ?? 'Brechó Parceiro' }}
 						</span>
 					@endif
-					<a href="{{ route('dashboard') }}" class="text-gray-600 hover:text-blue-600 transition duration-300" title="Dashboard">
+					<a href="{{ $homeUrl }}" class="text-gray-600 hover:text-blue-600 transition duration-300" title="Início">
 						<i class="fas fa-home text-lg"></i>
 					</a>
 					<form action="{{ route('logout') }}" method="POST" class="inline">
@@ -110,9 +113,10 @@
 					$canAtend      = $navUser && $navUser->canAccessModule('atendimento');
 					$canFinanceiro = $navUser && $navUser->canAccessModule('financeiro');
 					$canClube      = $navUser && $navUser->canAccessModule('clube');
+					$canOds        = $navUser && $navUser->canAccessModule('ods');
 					$canRelatorios = $navUser && $navUser->canAccessModule('relatorios');
 					$currentModule = \App\Models\User::resolveModuleForPath(request()->path());
-					$isReadOnlyCurrentModule = $navUser && $currentModule && $navUser->isReadOnlyInModule($currentModule);
+					$isReadOnlyCurrentModule = $navUser && $currentModule && $currentModule !== 'ods' && $navUser->isReadOnlyInModule($currentModule);
 				@endphp
 
 				{{-- 1. Dashboard --}}
@@ -382,20 +386,23 @@
                 @endif
 
                 {{-- 8. Relatórios --}}
-                @if($canRelatorios)
+                @if($canOds || $canRelatorios)
                 <div x-data="{ open: {{ request()->routeIs('admin.relatorios.ods*', 'admin.clientes.relatorios', 'admin.portal-acessos.*', 'severino.*', 'admin.knowledge-base.*') ? 'true' : 'false' }} }">
                     <button type="button" @click="open = !open"
                             class="w-full flex items-center justify-between px-3 py-2 rounded-lg transition duration-150 hover:bg-gray-100 {{ request()->routeIs('admin.relatorios.ods*', 'admin.clientes.relatorios', 'admin.portal-acessos.*', 'severino.*', 'admin.knowledge-base.*') ? 'bg-gray-100 font-bold text-gray-900' : 'text-gray-700' }}">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-chart-pie w-5 text-center text-indigo-500"></i>
-                            <span>Relatórios & IA</span>
+                            <span>Relatórios</span>
                         </div>
                         <i class="fas fa-chevron-down text-gray-400 text-xs transition duration-200" :class="open ? 'transform rotate-180' : ''"></i>
                     </button>
                     <div x-show="open" x-cloak class="pl-9 pr-2 py-1 space-y-1 bg-gray-50/80 rounded-lg mt-0.5 border border-gray-100">
+                        @if($canOds)
                         <a href="{{ route('admin.relatorios.ods') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.relatorios.ods*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-bullseye mr-1.5 text-indigo-500"></i> ODS
                         </a>
+                        @endif
+                        @if($canRelatorios)
                         <a href="{{ route('admin.clientes.relatorios') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.clientes.relatorios') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-chart-line mr-1.5 text-indigo-400"></i> Relatório de Clientes
                         </a>
@@ -408,6 +415,7 @@
                         <a href="{{ route('admin.knowledge-base.index') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.knowledge-base.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fas fa-brain mr-1.5 text-indigo-400"></i> Memória da IA (RAG)
                         </a>
+                        @endif
                     </div>
                 </div>
                 @endif
