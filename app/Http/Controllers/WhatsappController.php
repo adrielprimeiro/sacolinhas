@@ -265,22 +265,79 @@ class WhatsappController extends Controller
 		if ($isConfirm) {
 			if (str_ends_with($digits ?? '', '84136870')) {
 				$testContext = \Illuminate\Support\Facades\Cache::get('portal_welcome_test_context');
-				$testUserId = $testContext['user_id'] ?? ($user->id ?? null);
-				$testLiveId = $testContext['live_id'] ?? ($contextLiveId ?? null);
+				// Prioriza a mensagem original clicada no botão "Revisar e Confirmar"; senão usa o último contexto de teste
+				$testUserId = ($repliedSid !== '' && !empty($user?->id))
+					? $user->id
+					: ($testContext['user_id'] ?? ($user->id ?? null));
+				$testLiveId = ($repliedSid !== '' && !empty($contextLiveId))
+					? $contextLiveId
+					: ($testContext['live_id'] ?? ($contextLiveId ?? null));
 
-				$msgTeste = "Opção 1\n"
-					. "Primeira Compra: 👉 https://minhamania.net/portal/boas-vindas?flow=first_purchase\n"
-					. "Opção 2\n"
-					. "Cliente Recorrente sem sacolinha aberta: 👉 https://minhamania.net/portal/boas-vindas?flow=no_bag\n"
-					. "Opção 3\n"
-					. "Cliente Recorrente com sacolinha aberta: 👉 https://minhamania.net/portal/boas-vindas?flow=regular\n"
-					. "Opção 4\n"
-					. "Membro do Clube: 👉 https://minhamania.net/portal/boas-vindas?flow=clube\n"
-					. "Opção 5\n"
-					. "Sacolinha Vencida/Bloqueada: 👉 https://minhamania.net/portal/boas-vindas?flow=pendencies";
+				if ($testUserId) {
+					$resolved = \App\Http\Controllers\PortalClienteController::resolveUserWelcomeFlow((int) $testUserId, $testLiveId ? (int) $testLiveId : null);
+					$flow = $resolved['flow'];
 
-				$this->sendWhatsappText($to, $msgTeste, $testUserId, $testLiveId, 'second');
-				return $this->emptyTwiml();
+					\Illuminate\Support\Facades\Cache::put('portal_welcome_test_context', [
+						'user_id' => (int) $testUserId,
+						'live_id' => $testLiveId ? (int) $testLiveId : null,
+						'flow' => $flow,
+						'updated_at' => now()->toDateTimeString(),
+					], now()->addHours(24));
+
+					$dadosSacola = DB::table('sacolinhas')
+						->selectRaw('MIN(add_at) as abertura, COUNT(*) as num_items, SUM(COALESCE(quantity, 1) * COALESCE(price, 0)) as valor_total')
+						->where('user_id', $testUserId)
+						->where('status', '!=', 'pedido')
+						->first();
+
+					$abertura = !empty($dadosSacola?->abertura) ? Carbon::parse($dadosSacola->abertura)->format('d/m/Y') : '-';
+					$numItems = $dadosSacola?->num_items ?? 0;
+					$valorTotal = number_format((float) ($dadosSacola?->valor_total ?? 0), 2, ',', '.');
+					$saldo = number_format((float) ($resolved['saldoCliente'] ?? 0), 2, ',', '.');
+
+					$msgTeste = match ($flow) {
+						'first_purchase' => "👉 Confira o pedido.\n"
+							. "Seja muito bem-vinda à Minha Mania! 💖\n\n"
+							. "Acesse o link abaixo para revisar seu primeiro pedido, conhecer como funciona a nossa sacolinha e prosseguir para o pagamento:\n"
+							. "👉 https://minhamania.net/portal/boas-vindas?flow=first_purchase\n\n"
+							. "⏰ Sem resposta em 24h, o pedido é cancelado.",
+
+						'no_bag' => "👉 Confira o pedido.\n"
+							. "Que bom ter você de volta! 🛍️\n\n"
+							. "Acesse o link abaixo para revisar seu pedido da live e escolher entre *Guardar em Nova Sacolinha* (até 30 dias) ou *Receber Envio Imediato*:\n"
+							. "👉 https://minhamania.net/portal/boas-vindas?flow=no_bag\n\n"
+							. "⏰ Sem resposta em 24h, o pedido é cancelado.",
+
+						'regular' => "👉 Confira o pedido\n"
+							. "Se estiver ok → os itens serão incluídos em sua sacolinha.\n\n"
+							. "Sua sacolinha (com o pedido de hoje):\n"
+							. "*Aberta em:* {$abertura}\n"
+							. "*Número de itens:* {$numItems}\n"
+							. "*Valor total:* R$ {$valorTotal}\n\n"
+							. "*Valor pago:* R$ {$saldo}\n\n"
+							. "Acesse o link abaixo para pagar e guardar na sacolinha ou solicitar o envio:\n"
+							. "👉 https://minhamania.net/portal/boas-vindas?flow=regular",
+
+						'clube' => "🌟 *Membro VIP do Clube Mania*\n"
+							. "👉 Confira o pedido\n\n"
+							. "Sua sacolinha (com o pedido de hoje):\n"
+							. "*Aberta em:* {$abertura}\n"
+							. "*Número de itens:* {$numItems}\n"
+							. "*Valor total:* R$ {$valorTotal}\n\n"
+							. "*Saldo em carteira:* R$ {$saldo}\n\n"
+							. "Acesse o link abaixo para confirmar seu pedido:\n"
+							. "👉 https://minhamania.net/portal/boas-vindas?flow=clube",
+
+						'pendencies' => "👉 Confira o pedido\n"
+							. "(ajustes pendentes na sua sacolinha acumulada).\n\n"
+							. "Acesse o link abaixo para escolher entre finalizar e enviar tudo ou desfazer os itens antigos:\n"
+							. "👉 https://minhamania.net/portal/boas-vindas?flow=pendencies\n\n"
+							. "⏰ Sem resposta em 24h, itens cancelados.",
+					};
+
+					$this->sendWhatsappText($to, $msgTeste, $testUserId, $testLiveId, 'second');
+					return $this->emptyTwiml();
+				}
 			}
 
 			if (!$user) {

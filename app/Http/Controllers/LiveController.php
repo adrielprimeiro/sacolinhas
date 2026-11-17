@@ -929,57 +929,27 @@ class LiveController extends Controller
 			return response()->json(['success' => false, 'message' => 'Usuário não encontrado'], 404);
 		}
 
-		// Registra o contexto de teste para que os 5 links de /portal/boas-vindas?flow=... exibam a sacola deste cliente nesta live
+		// Avalia qual das 5 opções corresponde ao perfil real deste cliente
+		$resolved = \App\Http\Controllers\PortalClienteController::resolveUserWelcomeFlow($userId, $liveId);
+
+		// Registra o contexto de teste para a confirmação na Twilio e para abrir o link no Portal como este cliente
 		\Illuminate\Support\Facades\Cache::put('portal_welcome_test_context', [
 			'user_id' => $userId,
 			'live_id' => $liveId,
+			'flow' => $resolved['flow'],
 			'updated_at' => now()->toDateTimeString(),
 		], now()->addHours(24));
 
 		$telefoneTeste = '5548984136870';
 
-		$mensagemTeste = "Opção 1\n"
-			. "Primeira Compra: 👉 https://minhamania.net/portal/boas-vindas?flow=first_purchase\n"
-			. "Opção 2\n"
-			. "Cliente Recorrente sem sacolinha aberta: 👉 https://minhamania.net/portal/boas-vindas?flow=no_bag\n"
-			. "Opção 3\n"
-			. "Cliente Recorrente com sacolinha aberta: 👉 https://minhamania.net/portal/boas-vindas?flow=regular\n"
-			. "Opção 4\n"
-			. "Membro do Clube: 👉 https://minhamania.net/portal/boas-vindas?flow=clube\n"
-			. "Opção 5\n"
-			. "Sacolinha Vencida/Bloqueada: 👉 https://minhamania.net/portal/boas-vindas?flow=pendencies";
-
-		// Envia imediatamente via Evolution API para o número de teste (5548984136870)
-		$evoRes = app(\App\Services\Whatsapp\EvolutionApiService::class)->sendText($telefoneTeste, $mensagemTeste);
-
-		if ($evoRes['success'] ?? false) {
-			$msgId = $evoRes['message_id'] ?? null;
-			if (!$msgId || !\App\Models\EvolutionMessage::where('message_id', $msgId)->exists()) {
-				\App\Models\EvolutionMessage::create([
-					'user_id' => $userId,
-					'admin_id' => auth()->id(),
-					'instance_name' => 'sacolinhas',
-					'remote_jid' => '554884136870@s.whatsapp.net',
-					'push_name' => 'Teste: ' . ($user->name ?? 'Cliente'),
-					'direction' => 'outbound',
-					'status' => 'sent',
-					'message_id' => $msgId,
-					'from' => 'evolution',
-					'to' => $telefoneTeste,
-					'body' => $mensagemTeste,
-					'raw_payload' => $evoRes,
-				]);
-			}
-		}
-
-		// Também dispara Msg1 via Twilio para o telefone de teste (5548984136870) caso queira testar o botão "Revisar e Confirmar"
+		// Dispara a Msg1 oficial pela Twilio para o seu WhatsApp pessoal (5548984136870)
 		SendWhatsAppMessage::dispatch($telefoneTeste, $liveId, $userId, 'first')
 			->onQueue('whatsapp');
 
 		return response()->json([
 			'success' => true,
-			'evolution_sent' => $evoRes['success'] ?? false,
-			'message' => "Mensagem de teste com os 5 layouts enviada para {$telefoneTeste} (Cliente em teste: {$user->name})."
+			'flow' => $resolved['flow'],
+			'message' => "Msg Inicial enviada pela Twilio para {$telefoneTeste}!\nCliente: {$user->name}\nPerfil: {$resolved['label']}\n\nToque em 'Revisar e Confirmar' no WhatsApp para receber a mensagem correspondente a este cliente."
 		]);
 	}
 }

@@ -555,6 +555,101 @@ class PortalClienteController extends Controller
     }
 
     /**
+     * Avalia o perfil real do cliente para definir qual das 5 opções de boas-vindas se aplica.
+     */
+    public static function resolveUserWelcomeFlow(int $userId, ?int $liveId = null): array
+    {
+        $user = \App\Models\User::find($userId);
+
+        // 1. É do clube?
+        $isClube = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
+            ->where('user_id', $userId)
+            ->where('status', 'ativa')
+            ->exists();
+
+        // 2. É a primeira compra? (Sem pedidos aprovados anteriores)
+        $hasPreviousOrders = \App\Models\Pedido::where('user_id', $userId)
+            ->where('status_pagamento', 'aprovado')
+            ->where('status_pedido', '!=', 'cancelado')
+            ->exists();
+        $isFirstPurchase = !$hasPreviousOrders;
+
+        // 3. Itens abertos na sacolinha de lives ANTERIORES à live atual
+        $sacolinhaAnteriorQuery = \Illuminate\Support\Facades\DB::table('sacolinhas')
+            ->where('user_id', $userId)
+            ->where('status', '!=', 'pedido');
+
+        if ($liveId) {
+            $sacolinhaAnteriorQuery->where('live_id', '!=', $liveId);
+        }
+
+        $itensAnteriores = $sacolinhaAnteriorQuery->get();
+        $hasSacolinhaAberta = $itensAnteriores->isNotEmpty();
+
+        // 4. Saldo e limite de crédito
+        $saldoCliente = (float) (\Illuminate\Support\Facades\DB::table('conta_corrente')
+            ->where('user_id', $userId)
+            ->orderByDesc('data_movimentacao')
+            ->orderByDesc('id')
+            ->value('saldo_atual') ?? 0);
+
+        $limiteDisponivel = (float) (\Illuminate\Support\Facades\DB::table('cliente_limites')
+            ->where('user_id', $userId)
+            ->where('ativo', 1)
+            ->value('limite_disponivel') ?? 0);
+
+        // 5. Verificar pendência ou vencimento (> 30 dias) na sacolinha acumulada
+        $hasUnpaidItems = false;
+        $isExpired = false;
+        $oldestItemDateFmt = null;
+
+        if ($hasSacolinhaAberta) {
+            $totalAnteriores = $itensAnteriores->sum(fn($i) => ($i->quantity ?? 1) * ($i->price ?? 0));
+            if (!$isClube) {
+                $hasUnpaidItems = $totalAnteriores > ($saldoCliente + $limiteDisponivel);
+            }
+
+            $oldestDate = $itensAnteriores->min('add_at');
+            if ($oldestDate) {
+                $isExpired = \Carbon\Carbon::parse($oldestDate)->diffInDays(now()) > 30;
+                $oldestItemDateFmt = \Carbon\Carbon::parse($oldestDate)->format('d/m/Y');
+            }
+        }
+
+        $isBlocked = !empty($user?->bloqueado);
+
+        if ($isClube) {
+            $flow = 'clube';
+            $label = 'Opção 4 - Membro do Clube';
+        } elseif ($isExpired || $hasUnpaidItems || $isBlocked) {
+            $flow = 'pendencies';
+            $label = 'Opção 5 - Sacolinha Vencida/Bloqueada';
+        } elseif ($isFirstPurchase && !$hasSacolinhaAberta) {
+            $flow = 'first_purchase';
+            $label = 'Opção 1 - Primeira Compra';
+        } elseif (!$hasSacolinhaAberta) {
+            $flow = 'no_bag';
+            $label = 'Opção 2 - Cliente Recorrente sem sacolinha aberta';
+        } else {
+            $flow = 'regular';
+            $label = 'Opção 3 - Cliente Recorrente com sacolinha aberta';
+        }
+
+        return [
+            'flow' => $flow,
+            'label' => $label,
+            'isClube' => $isClube,
+            'isFirstPurchase' => $isFirstPurchase,
+            'hasSacolinha' => $hasSacolinhaAberta,
+            'saldoCliente' => $saldoCliente,
+            'limiteDisponivel' => $limiteDisponivel,
+            'hasUnpaidItems' => $hasUnpaidItems,
+            'isExpired' => $isExpired,
+            'oldestItemDateFmt' => $oldestItemDateFmt,
+        ];
+    }
+
+    /**
      * Tela inteligente de boas-vindas e checkout personalizado.
      */
     public function welcomeLanding()
@@ -563,7 +658,7 @@ class PortalClienteController extends Controller
         $testContext = \Illuminate\Support\Facades\Cache::get('portal_welcome_test_context');
         $isFlowTest = request()->has('flow') && in_array(request()->query('flow'), ['clube', 'first_purchase', 'pendencies', 'regular', 'no_bag']);
 
-        if ($isFlowTest && !empty($testContext['user_id'])) {
+        if (!empty($testContext['user_id']) && ($isFlowTest || !auth()->check() || (auth()->user()->role ?? '') !== 'client')) {
             $testUser = \App\Models\User::find($testContext['user_id']);
             if ($testUser) {
                 $user = $testUser;
@@ -605,20 +700,7 @@ class PortalClienteController extends Controller
             }
         }
 
-        // 1. É do clube?
-        $isClube = \Illuminate\Support\Facades\DB::table('clube_assinaturas')
-            ->where('user_id', $user->id)
-            ->where('status', 'ativa')
-            ->exists();
-
-        // 2. É a primeira compra? (Só consideramos compras anteriores se o pagamento foi APROVADO)
-        $hasPreviousOrders = \App\Models\Pedido::where('user_id', $user->id)
-            ->where('status_pagamento', 'aprovado')
-            ->where('status_pedido', '!=', 'cancelado')
-            ->exists();
-        $isFirstPurchase = !$hasPreviousOrders;
-
-        // 3. Obter itens da sacolinha atual
+        // Obter itens da sacolinha atual
         $sacolinhaItens = \Illuminate\Support\Facades\DB::table('sacolinhas')
             ->join('items', 'sacolinhas.item_id', '=', 'items.id')
             ->where('sacolinhas.user_id', $user->id)
@@ -638,75 +720,8 @@ class PortalClienteController extends Controller
             )
             ->get();
 
-        $hasSacolinha = $sacolinhaItens->isNotEmpty();
-
-        // 4. Buscar saldo na carteira
-        $saldoCliente = 0;
-        try {
-            $ultima = \App\Models\ContaCorrente::where('user_id', $user->id)
-                ->orderByDesc('data_movimentacao')
-                ->orderByDesc('id')
-                ->first();
-            $saldoCliente = (float) ($ultima?->saldo_atual ?? 0);
-        } catch (\Exception $e) {
-            $saldoCliente = 0;
-        }
-
-        // 5. Verificar pendência financeira / limite de crédito (para não membros do clube)
-        $hasUnpaidItems = false;
-        if (!$isClube && $hasSacolinha) {
-            $totalSacolinha = $sacolinhaItens->sum(function($item) {
-                return $item->quantity * $item->price;
-            });
-            // Se o valor total dos itens na sacolinha for maior que o saldo pago na carteira, tem itens não pagos
-            $hasUnpaidItems = $totalSacolinha > $saldoCliente;
-        }
-
-        // 6. Verificar expiração da sacolinha (>30 dias)
-        $isExpired = false;
-        $oldestItemDateFmt = null;
-        if ($hasSacolinha) {
-            $oldestItemDate = \Illuminate\Support\Facades\DB::table('sacolinhas')
-                ->where('user_id', $user->id)
-                ->where('status', '!=', 'pedido')
-                ->min('add_at');
-            if ($oldestItemDate) {
-                $isExpired = \Carbon\Carbon::parse($oldestItemDate)->diffInDays(now()) > 30;
-                $oldestItemDateFmt = \Carbon\Carbon::parse($oldestItemDate)->format('d/m/Y');
-            }
-        }
-
-        // 7. Informações do clube (Pontos no jogo, etc.)
-        $mesAtual = date('m/Y');
-        $pontosClube = (int) (\Illuminate\Support\Facades\DB::table('pontuacoes_clientes')
-            ->where('user_id', $user->id)
-            ->where('mes_ano', $mesAtual)
-            ->value('total') ?? 0);
-
-        // 8. Definir o fluxo correto
-        $flow = 'regular';
-        if ($isClube) {
-            $flow = 'clube';
-        } elseif ($isFirstPurchase) {
-            $flow = 'first_purchase';
-        } elseif ($isExpired || $hasUnpaidItems) {
-            $flow = 'pendencies';
-        } elseif (!$hasSacolinha) {
-            $flow = 'no_bag';
-        } else {
-            $flow = 'regular';
-        }
-
-        // Permite sobrescrever o fluxo via parâmetro de URL (ex: ?flow=first_purchase) para testes
-        if (request()->has('flow')) {
-            $requestedFlow = request()->query('flow');
-            if (in_array($requestedFlow, ['clube', 'first_purchase', 'pendencies', 'regular', 'no_bag'])) {
-                $flow = $requestedFlow;
-            }
-        }
-
         // Buscar dados da live selecionada (em teste) ou última live do cliente
-        $targetLiveId = request()->query('live_id') ?? ($isFlowTest ? ($testContext['live_id'] ?? null) : null);
+        $targetLiveId = request()->query('live_id') ?? ($testContext['live_id'] ?? null);
         $ultimaLive = null;
         if ($targetLiveId) {
             $ultimaLive = \Illuminate\Support\Facades\DB::table('lives')->where('id', $targetLiveId)->first();
@@ -716,6 +731,31 @@ class PortalClienteController extends Controller
             $ultimaLive = $lastUserLiveId
                 ? \Illuminate\Support\Facades\DB::table('lives')->where('id', $lastUserLiveId)->first()
                 : \Illuminate\Support\Facades\DB::table('lives')->orderByDesc('id')->first();
+        }
+
+        $resolved = self::resolveUserWelcomeFlow($user->id, $ultimaLive?->id);
+        $isClube = $resolved['isClube'];
+        $isFirstPurchase = $resolved['isFirstPurchase'];
+        $hasSacolinha = $resolved['hasSacolinha'];
+        $saldoCliente = $resolved['saldoCliente'];
+        $hasUnpaidItems = $resolved['hasUnpaidItems'];
+        $isExpired = $resolved['isExpired'];
+        $oldestItemDateFmt = $resolved['oldestItemDateFmt'];
+        $flow = $resolved['flow'];
+
+        // Informações do clube (Pontos no jogo, etc.)
+        $mesAtual = date('m/Y');
+        $pontosClube = (int) (\Illuminate\Support\Facades\DB::table('pontuacoes_clientes')
+            ->where('user_id', $user->id)
+            ->where('mes_ano', $mesAtual)
+            ->value('total') ?? 0);
+
+        // Permite sobrescrever o fluxo via parâmetro de URL (ex: ?flow=first_purchase)
+        if (request()->has('flow')) {
+            $requestedFlow = request()->query('flow');
+            if (in_array($requestedFlow, ['clube', 'first_purchase', 'pendencies', 'regular', 'no_bag'])) {
+                $flow = $requestedFlow;
+            }
         }
         
         // Obter os itens da sacolinha relativos à live atual

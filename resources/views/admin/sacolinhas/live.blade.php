@@ -410,7 +410,7 @@
     }
 
     async function enviarMensagemInicial(liveId, userId, btn) {
-        if (!confirm('Enviar mensagem de teste com os 5 layouts de Boas-Vindas para o seu WhatsApp (5548984136870)?')) {
+        if (!confirm('Deseja enviar a mensagem desta cliente (via Twilio) para o seu WhatsApp pessoal (5548984136870) para teste?')) {
             return;
         }
 
