@@ -25,6 +25,11 @@ Schedule::command('app:check-instagram-reels-comments')
     ->everyTenMinutes()
     ->withoutOverlapping();
 
+// Severino Cliper: Piloto Automático de publicação de cortes em horários de pico (a cada 5 min)
+Schedule::command('app:severino-cliper-autopost')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
 // Limpeza automática diária de gravações brutas antigas (> 15 dias), cortes órfãos e cortes de peças vendidas
 Schedule::command('lives:clean-old-recordings --days=15 --clean-duplicate-cuts --clean-sold-cuts')
     ->dailyAt('04:00')

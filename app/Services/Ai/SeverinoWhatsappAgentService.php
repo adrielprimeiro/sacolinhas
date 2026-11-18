@@ -231,20 +231,23 @@ class SeverinoWhatsappAgentService
         $subtotalFmt = 'R$ ' . number_format($subtotalLive, 2, ',', '.');
 
         if ($qtdItensLive <= 1) {
-            $templates = [
-                "Oii *{$primeiroNome}*! 🎉 Passando rapidinho pra confirmar que você garantiu a peça *[{$codDisplay}] {$nomePeca}{$detalhesStr}* por *{$precoFmt}* agora na live! 🛍️✨\n\nPode continuar aproveitando a transmissão tranquila que vou anotando tudo que você pegar por aqui e, no final da live, te mando o fechamento completo, tá bom?",
-                "Ebaaa *{$primeiroNome}*! 😍 Sua primeira peça de hoje já tá garantida e separada aqui: *[{$codDisplay}] {$nomePeca}{$detalhesStr}* — *{$precoFmt}*! ✨\n\nContinua curtindo a live que qualquer outra peça que você conseguir eu vou somando por aqui e no final a gente fecha tudo!",
-                "Oiê *{$primeiroNome}*! 💖 Anotei aqui pra você a peça *[{$codDisplay}] {$nomePeca}{$detalhesStr}* (*{$precoFmt}*)! Já está reservadinha no seu nome. 🛍️\n\nSegue acompanhando a live tranquila que no final te mando o resuminho completo por aqui mesmo!",
+            $frases = [
+                "Peça garantida na live! 🎉",
+                "Anotado pra você! ✨",
+                "Peça reservada com sucesso! 💖",
+                "Arrasou no garimpo! 🎉",
             ];
         } else {
-            $templates = [
-                "Mais uma pra sua sacola, *{$primeiroNome}*! 😍 Anotei aqui: *[{$codDisplay}] {$nomePeca}{$detalhesStr}* — *{$precoFmt}*.\n\nAgora você já está com *{$qtdItensLive} peças* separadas na live de hoje (subtotal *{$subtotalFmt}*)! ✨",
-                "Arrasou no garimpo, *{$primeiroNome}*! 🎉 Garantimos mais uma peça pra você: *[{$codDisplay}] {$nomePeca}{$detalhesStr}* (*{$precoFmt}*).\n\nJá são *{$qtdItensLive} peças* anotadas hoje somando *{$subtotalFmt}*! 🛍️💖",
-                "Anotadinha, *{$primeiroNome}*! ✨ +1 peça garantida: *[{$codDisplay}] {$nomePeca}{$detalhesStr}* por *{$precoFmt}*.\n\nSeu subtotal na live de hoje está em *{$subtotalFmt}* ({$qtdItensLive} itens). No final da live te passo o fechamento completo! 😊",
+            $frases = [
+                "Mais uma peça garantida! 🎉",
+                "Anotada mais uma! ✨",
+                "Mais uma pra você! 🛍️",
+                "Outra peça garantida! 💖",
             ];
         }
 
-        $text = $templates[array_rand($templates)];
+        $frase = $frases[array_rand($frases)];
+        $text = "{$frase}\n\n*[{$codDisplay}] {$nomePeca}{$detalhesStr}* — *{$precoFmt}*";
         if ($isTest) {
             self::setTestContext($cleanPhone, $userId, $liveId);
         }

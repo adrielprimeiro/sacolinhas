@@ -44,7 +44,7 @@ class SacolinhaController extends Controller
                     throw new \Exception('Não há live ativa no momento!', 400);
                 }
 
-                // 2. Verificar se o item já está na sacola (duplicidade)
+                // 2. Suporte a estoque múltiplo: se já estiver na sacola deste cliente, incrementa quantidade
                 $sacolaExistente = Sacolinhas::where([
                     'user_id' => $request->client_id,
                     'item_id' => $request->item_id,
@@ -52,7 +52,14 @@ class SacolinhaController extends Controller
                 ])->first();
 
                 if ($sacolaExistente) {
-                    return ['duplicate' => true];
+                    $sacolaExistente->increment('quantity');
+                    return [
+                        'success' => true,
+                        'sacolinha' => $sacolaExistente,
+                        'status' => $sacolaExistente->status,
+                        'price' => $priceToStore,
+                        'incremented' => true
+                    ];
                 }
 
                 // ---------------------------------------------------------
@@ -123,6 +130,19 @@ class SacolinhaController extends Controller
             });
 			
 			
+            if (isset($result['incremented'])) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Mais 1 unidade adicionada à sacola deste cliente!',
+                    'data' => [
+                        'sacolinha' => $result['sacolinha'],
+                        'status' => $result['status'],
+                        'price' => $result['price'],
+                        'formatted_price' => 'R$ ' . number_format($result['price'], 2, ',', '.'),
+                    ]
+                ]);
+            }
+
             if (isset($result['duplicate'])) {
                 return response()->json([
                     'success' => false,
@@ -362,14 +382,19 @@ class SacolinhaController extends Controller
                 // 3. Remover da sacola (Isso dispara o Trigger de DELETE do BD para o limite)
                 $sacola->delete();
 
-                // 4. FORÇA BRUTA: Atualizar status para 'estoque'
-                // Executado após o delete, garantindo que sobrescreve qualquer alteração do Trigger
-                DB::table('items')
-                    ->where('id', $request->item_id)
-                    ->update([
-                        'status' => 'estoque',
-                        'updated_at' => now()
-                    ]);
+                // 4. Atualizar status para 'estoque' somente se nenhuma outra sacolinha contiver este item
+                $outras = Sacolinhas::where('item_id', $request->item_id)
+                    ->where('status', '!=', 'pedido')
+                    ->exists();
+
+                if (!$outras) {
+                    DB::table('items')
+                        ->where('id', $request->item_id)
+                        ->update([
+                            'status' => 'estoque',
+                            'updated_at' => now()
+                        ]);
+                }
 
             });
 

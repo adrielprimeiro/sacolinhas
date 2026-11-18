@@ -40,6 +40,7 @@ class Cliente extends Model
         'pais',
         
         // Contatos tradicionais
+        'phone',
         'telefone_principal',
         'telefone_2',
         
@@ -169,10 +170,12 @@ class Cliente extends Model
         if (empty($rawTermo)) return $query;
 
         $cleanWithoutAt = ltrim($rawTermo, '@');
+        $hasLetters = (bool) preg_match('/[a-zA-ZÀ-ÿ]/u', $cleanWithoutAt);
         $onlyDigits = preg_replace('/\D/', '', $rawTermo);
+        $cleanAlnum = strtolower(preg_replace('/[^a-zA-Z0-9À-ÿ]/u', '', $cleanWithoutAt));
         $words = array_filter(explode(' ', $cleanWithoutAt), fn($w) => mb_strlen(trim($w)) >= 2);
 
-        return $query->where(function($q) use ($rawTermo, $cleanWithoutAt, $onlyDigits, $words) {
+        return $query->where(function($q) use ($rawTermo, $cleanWithoutAt, $hasLetters, $onlyDigits, $cleanAlnum, $words) {
             // Busca pelo termo completo original e sem @
             $q->where('name', 'like', "%{$rawTermo}%")
               ->orWhere('nome_cliente', 'like', "%{$rawTermo}%")
@@ -189,13 +192,24 @@ class Cliente extends Model
                   ->orWhere('tiktok', 'like', "%{$cleanWithoutAt}%");
             }
 
-            // Busca por dígitos (WhatsApp, CPF, Código do Cliente, Telefone)
-            if (!empty($onlyDigits)) {
+            // Busca normalizada ignorando pontos, traços, underscores e espaços (ex: "luzia950" encontra "luzia.950" e vice-versa)
+            if (mb_strlen($cleanAlnum) >= 3) {
+                $q->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(name, '')), '.', ''), '_', ''), '-', ''), ' ', '') LIKE ?", ["%{$cleanAlnum}%"])
+                  ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(instagram, '')), '.', ''), '_', ''), '-', ''), ' ', '') LIKE ?", ["%{$cleanAlnum}%"])
+                  ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(tiktok, '')), '.', ''), '_', ''), '-', ''), ' ', '') LIKE ?", ["%{$cleanAlnum}%"])
+                  ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(LOWER(COALESCE(apelido, '')), '.', ''), '_', ''), '-', ''), ' ', '') LIKE ?", ["%{$cleanAlnum}%"]);
+            }
+
+            // Busca por dígitos (WhatsApp, CPF, Código do Cliente, Telefone) APENAS quando a busca não contiver letras
+            // (Evita que "luzia950" busque todos os CPFs/telefones com "950")
+            if (!$hasLetters && !empty($onlyDigits)) {
                 $q->orWhere('whatsapp', 'like', "%{$onlyDigits}%")
+                  ->orWhere('phone', 'like', "%{$onlyDigits}%")
                   ->orWhere('telefone_principal', 'like', "%{$onlyDigits}%")
                   ->orWhere('telefone_2', 'like', "%{$onlyDigits}%")
                   ->orWhere('cpf', 'like', "%{$onlyDigits}%")
-                  ->orWhere('codigo_cliente', 'like', "%{$onlyDigits}%");
+                  ->orWhere('codigo_cliente', 'like', "%{$onlyDigits}%")
+                  ->orWhere('id', $onlyDigits);
             }
 
             // Se digitou múltiplos nomes (ex: "Adriana Silva"), busca todos os fragmentos no nome
@@ -205,7 +219,9 @@ class Cliente extends Model
                         $subQ->where(function($wQ) use ($w) {
                             $wQ->where('name', 'like', "%{$w}%")
                                ->orWhere('nome_cliente', 'like', "%{$w}%")
-                               ->orWhere('apelido', 'like', "%{$w}%");
+                               ->orWhere('apelido', 'like', "%{$w}%")
+                               ->orWhere('instagram', 'like', "%{$w}%")
+                               ->orWhere('tiktok', 'like', "%{$w}%");
                         });
                     }
                 });

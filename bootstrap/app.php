@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'admin/obs-relay/*',
+            'admin/severino/cliper/*',
             'api/*',
             'twilio-in',
             'twilio-out',

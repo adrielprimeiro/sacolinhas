@@ -230,4 +230,98 @@ class TikTokIntegrationController extends Controller
 
         return response()->json($stats);
     }
+
+    /**
+     * Prepara os dados para publicação direta via TikTok Web (navegador)
+     */
+    public function prepareWebUpload(Request $request, $liveItemId)
+    {
+        $liveItem = DB::table('live_items')
+            ->leftJoin('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.id', $liveItemId)
+            ->select([
+                'live_items.*',
+                'items.nome_do_produto as item_nome',
+                'items.descricao as item_descricao',
+                'items.preco as item_price',
+                'items.marca',
+                'items.tamanho',
+                'items.cor',
+                'items.estado'
+            ])
+            ->first();
+
+        if (!$liveItem) {
+            return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
+        }
+
+        if (empty($liveItem->video_cut_path)) {
+            return response()->json(['success' => false, 'message' => 'Vídeo do corte ainda não foi gerado.'], 400);
+        }
+
+        $code = $liveItem->codigo_live ?: ($liveItem->item_id ?? $liveItem->id);
+        $productName = $liveItem->item_nome ?: ($liveItem->item_descricao ?: "Peça #{$code}");
+        $price = !empty($liveItem->item_price) ? 'R$ ' . number_format($liveItem->item_price, 2, ',', '.') : '';
+        $brand = !empty($liveItem->marca) ? "Marca: {$liveItem->marca}" : '';
+        $size = !empty($liveItem->tamanho) ? "Tam: {$liveItem->tamanho}" : '';
+        $estado = !empty($liveItem->estado) ? "Condição: {$liveItem->estado}" : '';
+
+        $captionParts = ["✨ Peça #{$code}: {$productName}"];
+        if ($price) $captionParts[0] .= " por apenas {$price}";
+        $captionParts[0] .= "!";
+
+        $details = array_filter([$size, $brand, $estado]);
+        if (!empty($details)) {
+            $captionParts[] = implode(' | ', $details);
+        }
+
+        $captionParts[] = "💬 Comente 'QUERO' para colocar na sua sacola!";
+        $captionParts[] = "🛍️ Garanta pelo WhatsApp da Minha Mania ou no link da bio!";
+        $captionParts[] = "#minhamania #brecho #modafeminina #achadinhos #lookdodia #promo #live";
+
+        $caption = implode("\n", $captionParts);
+
+        $videoUrl = \Illuminate\Support\Facades\Storage::disk('public')->url($liveItem->video_cut_path);
+        if (str_starts_with($videoUrl, 'http://')) {
+            $videoUrl = str_replace('http://', 'https://', $videoUrl);
+        }
+
+        return response()->json([
+            'success' => true,
+            'item_id' => $liveItemId,
+            'code' => $code,
+            'product_name' => $productName,
+            'price' => $price,
+            'video_url' => $videoUrl,
+            'filename' => basename($liveItem->video_cut_path),
+            'caption' => $caption,
+            'upload_url' => 'https://www.tiktok.com/creator-center/upload'
+        ]);
+    }
+
+    /**
+     * Marca o corte como publicado no TikTok
+     */
+    public function markPublished(Request $request, $liveItemId)
+    {
+        $liveItem = DB::table('live_items')->where('id', $liveItemId)->first();
+        if (!$liveItem) {
+            return response()->json(['success' => false, 'message' => 'Item não encontrado.'], 404);
+        }
+
+        DB::table('live_items')
+            ->where('id', $liveItemId)
+            ->update([
+                'tiktok_status' => 'published',
+                'tiktok_published_at' => now(),
+                'tiktok_url' => 'https://www.tiktok.com/@minhamania',
+                'tiktok_error' => null,
+                'updated_at' => now()
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Corte marcado como publicado no TikTok!'
+        ]);
+    }
 }

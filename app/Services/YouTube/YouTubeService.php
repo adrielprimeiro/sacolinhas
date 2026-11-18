@@ -616,4 +616,56 @@ class YouTubeService
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
+
+    /**
+     * Busca estatísticas (visualizações, curtidas e comentários) de um lote de vídeos no YouTube
+     */
+    public function fetchVideoStatistics($videoIds): array
+    {
+        $account = SocialChannelAccount::getActiveAccount('youtube');
+        if (!$account) {
+            return [];
+        }
+
+        $accessToken = $this->getValidAccessToken($account);
+        if (!$accessToken) {
+            return [];
+        }
+
+        $ids = is_array($videoIds) ? implode(',', array_filter($videoIds)) : trim((string) $videoIds);
+        if (empty($ids)) {
+            return [];
+        }
+
+        try {
+            $response = Http::withToken($accessToken)
+                ->timeout(15)
+                ->get('https://www.googleapis.com/youtube/v3/videos', [
+                    'part' => 'statistics,snippet',
+                    'id'   => $ids,
+                ]);
+
+            if (!$response->successful()) {
+                Log::warning('[YouTubeService] Erro ao consultar estatísticas dos vídeos: ' . $response->body());
+                return [];
+            }
+
+            $items = $response->json('items') ?? [];
+            $result = [];
+            foreach ($items as $item) {
+                $vid = $item['id'] ?? null;
+                if (!$vid) continue;
+                $stats = $item['statistics'] ?? [];
+                $result[$vid] = [
+                    'views'    => (int) ($stats['viewCount'] ?? 0),
+                    'likes'    => (int) ($stats['likeCount'] ?? 0),
+                    'comments' => (int) ($stats['commentCount'] ?? 0),
+                ];
+            }
+            return $result;
+        } catch (\Throwable $e) {
+            Log::warning('[YouTubeService] Exceção em fetchVideoStatistics: ' . $e->getMessage());
+            return [];
+        }
+    }
 }

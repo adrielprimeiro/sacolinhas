@@ -40,11 +40,17 @@ class AdminPedidoController extends Controller
 			$query->where('user_id', $request->input('user_id'));
 		} else {
 			$query->when($request->filled('cliente'), function ($q) use ($request) {
-				$term = $request->input('cliente');
+				$term = trim($request->input('cliente'));
+				$cleanTerm = ltrim($term, '@');
 
-				$q->whereHas('user', function ($uq) use ($term) {
+				$q->whereHas('user', function ($uq) use ($term, $cleanTerm) {
 					$uq->where('name', 'like', '%' . $term . '%')
-					   ->orWhere('email', 'like', '%' . $term . '%');
+					   ->orWhere('nome_cliente', 'like', '%' . $term . '%')
+					   ->orWhere('apelido', 'like', '%' . $term . '%')
+					   ->orWhere('instagram', 'like', '%' . $cleanTerm . '%')
+					   ->orWhere('tiktok', 'like', '%' . $cleanTerm . '%')
+					   ->orWhere('email', 'like', '%' . $term . '%')
+					   ->orWhere('whatsapp', 'like', '%' . $term . '%');
 				});
 			});
 		}

@@ -39,6 +39,7 @@ class InstagramService
             'instagram_basic',
             'instagram_content_publish',
             'instagram_manage_comments',
+            'instagram_manage_insights',
             'pages_show_list',
             'pages_read_engagement',
             'business_management',
@@ -211,6 +212,9 @@ class InstagramService
             return ['success' => false, 'message' => 'Arquivo de vídeo do corte não encontrado no servidor.'];
         }
 
+        // Garante que o arquivo MP4 possua moov atom no início (+faststart) para ingestão da Meta sem erro 2207077
+        $videoPath = $this->ensureFaststartVideo($videoPath);
+
         // 2. Montar Título / Legenda Dinâmica da Peça (usada no Reels)
         $code = $liveItem->codigo_live ?: $liveItem->item_id;
         $productName = $liveItem->item_nome ?: ($liveItem->item_descricao ?: "Peça #{$code}");
@@ -233,13 +237,14 @@ class InstagramService
             $caption = mb_substr($caption, 0, 2095) . '...';
         }
 
-        // 3. Montar URL pública absoluta HTTPS do vídeo (com cache-buster do arquivo editado)
-        $publicVideoUrl = url(Storage::url($liveItem->video_cut_path));
+        // 3. Montar URL pública absoluta HTTPS do vídeo (sem query params que causem rejeição de ingestão na Meta)
+        $storageBasePath = Storage::disk('public')->path('');
+        $storageRelative = str_replace([$storageBasePath, '\\'], ['', '/'], $videoPath);
+        $storageRelative = ltrim($storageRelative, '/');
+        $publicVideoUrl = url('storage/' . $storageRelative);
         if (str_starts_with($publicVideoUrl, 'http://')) {
             $publicVideoUrl = str_replace('http://', 'https://', $publicVideoUrl);
         }
-        $mtime = @filemtime($videoPath) ?: time();
-        $publicVideoUrl .= (str_contains($publicVideoUrl, '?') ? '&' : '?') . 'v=' . $mtime;
 
         DB::table('live_items')
             ->where('id', $liveItem->id)
@@ -290,7 +295,7 @@ class InstagramService
                 // nos primeiros 15-25s enquanto os workers baixam/transcodificam o vídeo, mudando depois para FINISHED.
                 $isReady = false;
                 $lastErrorMsg = null;
-                $maxAttempts = 25;
+                $maxAttempts = 40;
                 for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
                     sleep(3);
 
@@ -314,10 +319,7 @@ class InstagramService
 
                     if ($statusCode === 'ERROR') {
                         $lastErrorMsg = $statusDetail ?: 'Erro durante processamento do vídeo pela Meta.';
-                        // Só aborta se continuar em ERROR após 14 tentativas (~42 segundos)
-                        if ($attempt >= 14) {
-                            throw new \Exception("Instagram falhou ao processar o vídeo ({$typeLabel}): {$lastErrorMsg}");
-                        }
+                        throw new \Exception("Instagram falhou ao processar o vídeo ({$typeLabel}): {$lastErrorMsg}");
                     }
                 }
 
@@ -546,5 +548,115 @@ class InstagramService
             Log::error("[InstagramService@replyToComment] Exceção: " . $e->getMessage());
             return ['success' => false, 'message' => $e->getMessage()];
         }
+    }
+
+    /**
+     * Busca estatísticas (curtidas, comentários e visualizações/alcance) de uma mídia do Instagram
+     */
+    public function fetchMediaStatistics(string $mediaId): array
+    {
+        $account = $this->getActiveAccount();
+        if (!$account || empty($account->access_token)) {
+            return [];
+        }
+
+        try {
+            $res = Http::timeout(15)->get("https://graph.facebook.com/{$this->graphVersion}/{$mediaId}", [
+                'fields'       => 'id,like_count,comments_count,media_type,media_product_type',
+                'access_token' => $account->access_token,
+            ]);
+
+            if (!$res->successful()) {
+                return [];
+            }
+
+            $data = $res->json();
+            $likes = (int) ($data['like_count'] ?? 0);
+            $comments = (int) ($data['comments_count'] ?? 0);
+            $mediaProductType = strtoupper($data['media_product_type'] ?? '');
+            $views = 0;
+
+            // Busca dados de alcance/views via Insights da Meta
+            try {
+                // Stories aceitam 'reach,impressions'. Reels aceitam 'reach,total_interactions'.
+                $metrics = ($mediaProductType === 'STORY')
+                    ? 'reach,impressions'
+                    : 'reach,total_interactions';
+
+                $insightRes = Http::timeout(10)->get("https://graph.facebook.com/{$this->graphVersion}/{$mediaId}/insights", [
+                    'metric'       => $metrics,
+                    'access_token' => $account->access_token,
+                ]);
+
+                if ($insightRes->successful()) {
+                    foreach ($insightRes->json('data') ?? [] as $metric) {
+                        $val = (int) ($metric['values'][0]['value'] ?? ($metric['value'] ?? 0));
+                        if (($metric['name'] ?? '') === 'reach' && $val > 0) {
+                            $views = $val;
+                        } elseif (($metric['name'] ?? '') === 'impressions' && $views === 0) {
+                            $views = $val;
+                        }
+                    }
+                } else {
+                    // Fallback para tentar 'reach' isolado
+                    $fallbackRes = Http::timeout(8)->get("https://graph.facebook.com/{$this->graphVersion}/{$mediaId}/insights", [
+                        'metric'       => 'reach',
+                        'access_token' => $account->access_token,
+                    ]);
+                    if ($fallbackRes->successful()) {
+                        foreach ($fallbackRes->json('data') ?? [] as $metric) {
+                            $val = (int) ($metric['values'][0]['value'] ?? ($metric['value'] ?? 0));
+                            if ($val > 0) {
+                                $views = $val;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $t) {
+                // Silencioso se permissões de insights não estiverem ativas
+            }
+
+            return [
+                'likes'    => $likes,
+                'comments' => $comments,
+                'views'    => $views,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning("[InstagramService@fetchMediaStatistics] Erro no media {$mediaId}: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Otimiza o arquivo MP4 movendo o moov atom para o início (+faststart)
+     * Isso é OBRIGATÓRIO pela Meta Graph API para evitar o erro 2207077
+     */
+    protected function ensureFaststartVideo(string $filePath): string
+    {
+        if (!file_exists($filePath) || !str_ends_with(strtolower($filePath), '.mp4')) {
+            return $filePath;
+        }
+
+        $dir = dirname($filePath);
+        $filename = pathinfo($filePath, PATHINFO_FILENAME);
+        if (str_ends_with($filename, '_faststart')) {
+            return $filePath;
+        }
+
+        $faststartPath = $dir . '/' . $filename . '_faststart.mp4';
+        if (file_exists($faststartPath) && (filemtime($faststartPath) >= filemtime($filePath)) && filesize($faststartPath) > 0) {
+            return $faststartPath;
+        }
+
+        // Executa normalização de codec, GOP e moov atom (+faststart) para 100% de compatibilidade com os servidores da Meta
+        $cmd = "ffmpeg -y -i " . escapeshellarg($filePath) . " -c:v libx264 -preset veryfast -profile:v main -level 3.1 -pix_fmt yuv420p -g 50 -keyint_min 25 -c:a aac -b:a 128k -ar 44100 -movflags +faststart " . escapeshellarg($faststartPath) . " 2>&1";
+        @exec($cmd, $out, $exitCode);
+
+        if ($exitCode === 0 && file_exists($faststartPath) && filesize($faststartPath) > 0) {
+            return $faststartPath;
+        }
+
+        return $filePath;
     }
 }

@@ -78,6 +78,28 @@
         </div>
     </div>
 
+    {{-- BANNER DE ACESSO AO SEVERINO CLIPER --}}
+    <div class="bg-gradient-to-r from-indigo-900 to-purple-900 rounded-2xl p-3.5 sm:p-4 text-white shadow-sm mb-4 border border-indigo-700 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/30 border border-indigo-400/40 flex items-center justify-center text-xl shrink-0">
+                🤖
+            </div>
+            <div>
+                <h4 class="text-xs sm:text-sm font-black text-white flex items-center gap-2">
+                    Severino Cliper
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-pink-500 text-white">Piloto Automático</span>
+                </h4>
+                <p class="text-xs text-indigo-200">Deixe o Severino escolher as melhores peças não vendidas e postar automaticamente nas redes nos horários de pico.</p>
+            </div>
+        </div>
+        <a href="{{ route('admin.severino.cliper', ['live_id' => $live ? $live->id : '']) }}" 
+           class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black bg-pink-600 hover:bg-pink-500 active:scale-95 text-white shadow-sm transition shrink-0"
+           style="background-color: #db2777; color: #ffffff !important;">
+            <i class="fas fa-robot text-xs"></i>
+            <span>Abrir Painel do Severino Cliper</span>
+        </a>
+    </div>
+
     {{-- LISTA DE CARDS --}}
     @if(!$live || $liveItems->isEmpty())
         <div class="bg-white rounded-2xl p-10 text-center border border-gray-200 shadow-sm my-6">
@@ -186,6 +208,22 @@
                                     <i class="fab fa-instagram text-white text-xs sm:text-sm"></i>
                                     @if(!empty($item['instagram_media_id']) || ($item['instagram_status'] ?? '') === 'published')
                                         <span class="ig-check-badge absolute -top-1.5 -right-1.5 rounded-full w-4 h-4 sm:w-[18px] sm:h-[18px] flex items-center justify-center font-black shadow-md"
+                                              style="background-color: #4ade80; color: #000000 !important; border: 1.5px solid #000000;">
+                                            <i class="fas fa-check text-[9px] sm:text-[10px] font-black" style="color: #000000 !important;"></i>
+                                        </span>
+                                    @endif
+                                </button>
+
+                                {{-- Botão Publicar no TikTok (Web Direto) --}}
+                                <button type="button" 
+                                        onclick="uploadCutToTikTokSocial({{ $item['live_item_id'] }})" 
+                                        id="btn-tiktok-social-{{ $item['live_item_id'] }}" 
+                                        style="background-color: #0f172a; color: #ffffff !important;"
+                                        class="relative w-8 h-8 sm:w-9 sm:h-9 inline-flex items-center justify-center hover:bg-black active:scale-95 text-white font-extrabold rounded-xl shadow-sm transition cursor-pointer {{ !empty($item['tiktok_publish_id']) || ($item['tiktok_status'] ?? '') === 'published' ? 'ring-2 ring-gray-900' : '' }}"
+                                        title="{{ !empty($item['tiktok_publish_id']) || ($item['tiktok_status'] ?? '') === 'published' ? 'Enviado ao TikTok ✓ - Clique para abrir ou reenviar' : 'Publicar este corte no TikTok via Navegador' }}">
+                                    <i class="fab fa-tiktok text-white text-xs sm:text-sm"></i>
+                                    @if(!empty($item['tiktok_publish_id']) || ($item['tiktok_status'] ?? '') === 'published')
+                                        <span class="tiktok-check-badge absolute -top-1.5 -right-1.5 rounded-full w-4 h-4 sm:w-[18px] sm:h-[18px] flex items-center justify-center font-black shadow-md"
                                               style="background-color: #4ade80; color: #000000 !important; border: 1.5px solid #000000;">
                                             <i class="fas fa-check text-[9px] sm:text-[10px] font-black" style="color: #000000 !important;"></i>
                                         </span>
@@ -519,9 +557,22 @@
                     <span>Duração Final:</span>
                     <span class="font-bold text-pink-400" id="confirmDurationNew">0s</span>
                 </div>
+                {{-- Opção: Adicionar Selo/Carimbo --}}
+                <div class="pt-2 border-t border-gray-700">
+                    <label class="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-900/80 border border-gray-700 cursor-pointer hover:bg-gray-900 transition text-left">
+                        <input type="checkbox" id="confirmApplyEditionCheckbox" class="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer" onchange="updateConfirmEditionStatusUI()">
+                        <div class="flex-1">
+                            <span class="text-xs font-bold text-gray-200 flex items-center gap-1.5">
+                                <i class="fas fa-stamp text-purple-400 text-xs"></i>
+                                <span>Adicionar Selo/Carimbo de Estado</span>
+                            </span>
+                            <span class="text-[10px] text-gray-400 block mt-0.5">Desmarcado = Corte limpo. Marcado = Selo, card e moldura.</span>
+                        </div>
+                    </label>
+                </div>
                 <div class="flex items-center justify-between text-gray-300 pt-1.5 border-t border-gray-700">
                     <span>Acabamento:</span>
-                    <span class="font-bold text-emerald-400" id="confirmEditionStatus">Selo + Marca + Legenda</span>
+                    <span class="font-bold text-emerald-400" id="confirmEditionStatus">Corte Limpo</span>
                 </div>
             </div>
 
@@ -1969,10 +2020,11 @@ function showConfirmModal() {
 
     if (durNew) durNew.textContent = `${finalDur} segundos`;
 
-    if (editionStatus) {
-        editionStatus.textContent = withoutSubtitles ? 'Selo + Marca (Sem Legenda)' : 'Selo + Marca + Legenda';
-        editionStatus.className = withoutSubtitles ? 'font-bold text-indigo-300' : 'font-bold text-emerald-400';
+    const applyEditionCb = document.getElementById('confirmApplyEditionCheckbox');
+    if (applyEditionCb) {
+        applyEditionCb.checked = false; // Padrão: corte limpo sem selo, conforme solicitado
     }
+    updateConfirmEditionStatusUI();
 
     if (middleRow && middleText) {
         if (middleCutStart !== null && middleCutEnd !== null) {
@@ -1988,6 +2040,20 @@ function showConfirmModal() {
     confirmModal.classList.remove('hidden');
     confirmModal.classList.add('flex');
     confirmModal.style.display = 'flex';
+}
+
+function updateConfirmEditionStatusUI() {
+    const cb = document.getElementById('confirmApplyEditionCheckbox');
+    const editionStatus = document.getElementById('confirmEditionStatus');
+    if (!editionStatus) return;
+    const withStamp = cb ? cb.checked : false;
+    if (withStamp) {
+        editionStatus.textContent = withoutSubtitles ? 'Selo + Marca (Sem Legenda)' : 'Selo + Marca + Legenda';
+        editionStatus.className = 'font-bold text-purple-400';
+    } else {
+        editionStatus.textContent = withoutSubtitles ? 'Corte Limpo (Sem Legenda)' : 'Corte Limpo com Legenda';
+        editionStatus.className = 'font-bold text-emerald-400';
+    }
 }
 
 function hideConfirmModal() {
@@ -2061,13 +2127,18 @@ async function saveAndReCutItem() {
         overlay.style.display = 'flex';
     }
 
+    const applyEditionCb = document.getElementById('confirmApplyEditionCheckbox');
+    const applyEdition = applyEditionCb ? applyEditionCb.checked : false;
+
     // Reinicia contadores visuais
     if (progressCircle) progressCircle.setAttribute('stroke-dasharray', '5, 100');
     if (progressBar) progressBar.style.width = '5%';
     if (percentText) percentText.textContent = '5%';
     if (timerElapsed) timerElapsed.textContent = '0.0s';
-    if (statusTitle) statusTitle.textContent = 'Recortando e Aplicando Edição...';
-    if (statusDesc) statusDesc.textContent = 'Severino FFmpeg está recortando o vídeo e aplicando o Selo e a Marca.';
+    if (statusTitle) statusTitle.textContent = applyEdition ? 'Recortando e Aplicando Edição...' : 'Recortando Vídeo Limpo...';
+    if (statusDesc) statusDesc.textContent = applyEdition 
+        ? 'Severino FFmpeg está recortando o vídeo e aplicando o Selo e a Marca.'
+        : 'Severino FFmpeg está gerando o corte de vídeo limpo.';
 
     const startTime = Date.now();
     let currentPct = 5;
@@ -2085,10 +2156,10 @@ async function saveAndReCutItem() {
         }
 
         if (elapsedSec > 2.5 && statusDesc) {
-            statusDesc.textContent = 'Renderizando Selo flutuante e tela final da Marca...';
+            statusDesc.textContent = applyEdition ? 'Renderizando Selo flutuante e tela final da Marca...' : 'Renderizando frames de alta definição...';
         }
         if (elapsedSec > 5.5 && statusDesc) {
-            statusDesc.textContent = 'Finalizando gravação do arquivo MP4 editado no disco...';
+            statusDesc.textContent = 'Finalizando gravação do arquivo MP4 no disco...';
         }
     }, 100);
 
@@ -2116,7 +2187,7 @@ async function saveAndReCutItem() {
             throw new Error(saveJson.message || 'Erro ao salvar novo timestamp.');
         }
 
-        // 2. Re-gerar o corte de vídeo no FFmpeg e aplicar Selo + Marca automaticamente
+        // 2. Re-gerar o corte de vídeo no FFmpeg
         const cutResp = await fetch(`/admin/lives/${liveId}/cortes/generate-single/${liveItemId}`, {
             method: 'POST',
             headers: {
@@ -2128,7 +2199,7 @@ async function saveAndReCutItem() {
                 middle_cut_start_sec: middleCutStart,
                 middle_cut_end_sec: middleCutEnd,
                 without_subtitles: withoutSubtitles ? 1 : 0,
-                apply_edition: 1,
+                apply_edition: applyEdition ? 1 : 0,
                 edition_style: 'reel_canvas'
             })
         });
@@ -2144,8 +2215,8 @@ async function saveAndReCutItem() {
         if (progressBar) progressBar.style.width = '100%';
         if (percentText) percentText.textContent = '100%';
         if (progressCircle) progressCircle.setAttribute('stroke-dasharray', '100, 100');
-        if (statusTitle) statusTitle.textContent = '✅ Corte e Edição Finalizados!';
-        if (statusDesc) statusDesc.textContent = `Vídeo recortado com Selo e Marca em ${totalElapsed}s.`;
+        if (statusTitle) statusTitle.textContent = applyEdition ? '✅ Corte e Edição Finalizados!' : '✅ Corte Limpo Finalizado!';
+        if (statusDesc) statusDesc.textContent = applyEdition ? `Vídeo recortado com Selo e Marca em ${totalElapsed}s.` : `Vídeo recortado limpo em ${totalElapsed}s.`;
 
         // 3. Atualizar dados do item local
         const newUrl = cutJson.video_url || cutJson.video_cut_url || currentItem.video_cut_url;
@@ -2172,7 +2243,7 @@ async function saveAndReCutItem() {
         }
 
         renderTimeBadges();
-        showToast('✅ Corte salvo com Selo e Marca!');
+        showToast(applyEdition ? '✅ Corte salvo com Selo e Marca!' : '✅ Corte limpo salvo com sucesso!');
 
         setTimeout(() => {
             if (overlay) {
@@ -2412,6 +2483,71 @@ async function uploadCutToInstagramSocial(mediaType = 'STORIES') {
 window.openInstagramPublishModal = openInstagramPublishModal;
 window.closeInstagramPublishModal = closeInstagramPublishModal;
 window.uploadCutToInstagramSocial = uploadCutToInstagramSocial;
+
+async function uploadCutToTikTokSocial(itemId) {
+    const btn = document.getElementById(`btn-tiktok-social-${itemId}`);
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-white text-xs sm:text-sm"></i>';
+    }
+    showGlobalToast('Preparando vídeo e legenda para o TikTok...', '🎬', 6000);
+    try {
+        const resp = await fetch(`/admin/tiktok/prepare-web-upload/${itemId}`);
+        const data = await resp.json();
+        if (!data.success) {
+            alert(data.message || 'Erro ao preparar vídeo para o TikTok.');
+            if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+            return;
+        }
+
+        let copied = false;
+        try {
+            await navigator.clipboard.writeText(data.caption);
+            copied = true;
+        } catch (clipErr) {
+            console.warn('Clipboard write failed:', clipErr);
+        }
+
+        const dl = document.createElement('a');
+        dl.href = data.video_url;
+        dl.download = data.filename || `corte_tiktok_${data.code || itemId}.mp4`;
+        dl.target = '_blank';
+        document.body.appendChild(dl);
+        dl.click();
+        document.body.removeChild(dl);
+
+        window.open(data.upload_url || 'https://www.tiktok.com/creator-center/upload', '_blank');
+
+        fetch(`/admin/tiktok/mark-published/${itemId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        }).catch(() => {});
+
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.add('ring-2', 'ring-gray-900');
+            btn.title = 'Enviado ao TikTok ✓ - Clique para abrir ou reenviar';
+            btn.innerHTML = `
+                <i class="fab fa-tiktok text-white text-xs sm:text-sm"></i>
+                <span class="tiktok-check-badge absolute -top-1.5 -right-1.5 rounded-full w-4 h-4 sm:w-[18px] sm:h-[18px] flex items-center justify-center font-black shadow-md"
+                      style="background-color: #4ade80; color: #000000 !important; border: 1.5px solid #000000;">
+                    <i class="fas fa-check text-[9px] sm:text-[10px] font-black" style="color: #000000 !important;"></i>
+                </span>
+            `;
+        }
+
+        showGlobalToast(`🎬 Vídeo baixado e TikTok Web aberto! ${copied ? '📋 Legenda copiada (Ctrl+V)!' : ''}`, '🎉', 12000);
+    } catch (e) {
+        if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+        alert('Erro ao preparar postagem do TikTok: ' + e.message);
+    }
+}
+window.uploadCutToTikTokSocial = uploadCutToTikTokSocial;
 
 // Fechar com tecla ESC
 document.addEventListener('keydown', function(e) {

@@ -508,6 +508,8 @@
                     focusClient();
                     
                     carregarSacolas();
+                } else {
+                    mostrarAlert(data.message || 'Erro ao adicionar item à sacola', 'danger');
                 }
             } catch (error) {
                 console.error('Erro:', error);

@@ -489,8 +489,20 @@ class ClienteController extends Controller
                 });
             }
 
+            $cleanTerm = ltrim(trim($query), '@');
             $clientes = $queryBuilder->buscar($query) // ✅ USAR SCOPE
-                             ->limit(10)
+                             ->orderByRaw("
+                                CASE
+                                    WHEN LOWER(name) = LOWER(?) OR LOWER(instagram) = LOWER(?) OR LOWER(tiktok) = LOWER(?) OR LOWER(apelido) = LOWER(?) THEN 0
+                                    WHEN LOWER(name) LIKE LOWER(?) OR LOWER(instagram) LIKE LOWER(?) OR LOWER(tiktok) LIKE LOWER(?) OR LOWER(apelido) LIKE LOWER(?) THEN 1
+                                    ELSE 2
+                                END ASC,
+                                id DESC
+                             ", [
+                                $cleanTerm, $cleanTerm, $cleanTerm, $cleanTerm,
+                                $cleanTerm . '%', $cleanTerm . '%', $cleanTerm . '%', $cleanTerm . '%'
+                             ])
+                             ->limit(20)
                              ->get([
                                 'id', 
                                 'name', 
