@@ -42,6 +42,7 @@ class EvolutionChatController extends Controller
             'success' => true,
             'state' => $state,
             'qr' => $qrData,
+            'severino_config' => \App\Services\Ai\SeverinoWhatsappAgentService::getConfig(),
         ]);
     }
 
@@ -141,6 +142,10 @@ class EvolutionChatController extends Controller
             }
 
             $conv->unread_count = $unreadQuery->count();
+            $conv->supervision_mode = \App\Services\Ai\SeverinoWhatsappAgentService::getSupervisionMode(
+                $conv->remote_jid,
+                $conv->user_id ? (int) $conv->user_id : null
+            );
         });
 
         return response()->json($conversations);
@@ -271,13 +276,22 @@ class EvolutionChatController extends Controller
 
         $status = ($res['success'] ?? false) ? 'sent' : 'failed';
         $messageId = $res['message_id'] ?? null;
+        $canonicalJid = $res['remote_jid'] ?? $targetJid;
         $failedReason = ($status === 'failed') ? ($res['error'] ?? 'Falha no envio') : null;
+
+        // Ao enviar mensagem manual pelo painel, o operador assume a conversa (pausa o Severino)
+        \App\Services\Ai\SeverinoWhatsappAgentService::setSupervisionMode(
+            $canonicalJid,
+            $user?->id,
+            'human',
+            'Operador respondeu manualmente pelo painel'
+        );
 
         $msg = EvolutionMessage::create([
             'user_id' => $user?->id,
             'admin_id' => $adminId,
             'instance_name' => 'sacolinhas',
-            'remote_jid' => $targetJid,
+            'remote_jid' => $canonicalJid,
             'push_name' => $pushName,
             'direction' => 'outbound',
             'status' => $status,
@@ -288,13 +302,202 @@ class EvolutionChatController extends Controller
             'media_type' => $mediaType,
             'media_url' => $mediaUrl,
             'failed_reason' => $failedReason,
-            'raw_payload' => $res,
+            'raw_payload' => array_merge((array) $res, ['sender_type' => 'human']),
         ]);
 
         return response()->json([
             'success' => $status === 'sent',
             'message' => $msg,
+            'supervision_mode' => 'human',
             'error' => $failedReason,
+        ]);
+    }
+
+    /**
+     * Alterna modo de supervisão da conversa: 'severino' (IA ativa) vs 'human' (Humano assumiu)
+     */
+    public function toggleSupervision(Request $request)
+    {
+        $remoteJid = trim((string) $request->input('remote_jid', ''));
+        $userId = $request->input('user_id') ? (int) $request->input('user_id') : null;
+        $desiredMode = $request->input('mode');
+
+        if (!$desiredMode) {
+            $current = \App\Services\Ai\SeverinoWhatsappAgentService::getSupervisionMode($remoteJid, $userId);
+            $desiredMode = ($current === 'severino') ? 'human' : 'severino';
+        }
+
+        \App\Services\Ai\SeverinoWhatsappAgentService::setSupervisionMode($remoteJid, $userId, $desiredMode);
+
+        return response()->json([
+            'success' => true,
+            'supervision_mode' => $desiredMode,
+        ]);
+    }
+
+    /**
+     * Obtém ou atualiza a configuração global do Severino Live WhatsApp (Modo Teste / Modo Live / Desativado)
+     */
+    public function severinoConfig(Request $request)
+    {
+        if ($request->isMethod('post')) {
+            $config = \App\Services\Ai\SeverinoWhatsappAgentService::saveConfig($request->all());
+            return response()->json(['success' => true, 'config' => $config]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'config' => \App\Services\Ai\SeverinoWhatsappAgentService::getConfig(),
+        ]);
+    }
+
+    /**
+     * Dispara teste de "Peça Ganha na Live" via Severino / Evolution API
+     */
+    public function sendLiveItemTest(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'required|integer',
+            'user_id' => 'required|integer',
+            'item_id' => 'nullable|integer',
+            'target_phone' => 'nullable|string',
+        ]);
+
+        $liveId = (int) $request->input('live_id');
+        $userId = (int) $request->input('user_id');
+        $itemId = $request->input('item_id') ? (int) $request->input('item_id') : null;
+        $targetPhone = $request->filled('target_phone') ? trim((string) $request->input('target_phone')) : null;
+
+        if (!$itemId) {
+            $sacolaRow = DB::table('sacolinhas')
+                ->where('live_id', $liveId)
+                ->where('user_id', $userId)
+                ->orderByDesc('id')
+                ->first();
+
+            if (!$sacolaRow) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Nenhum item encontrado na sacolinha desta cliente nesta live.',
+                ], 404);
+            }
+            $itemId = (int) $sacolaRow->item_id;
+            $price = (float) $sacolaRow->price;
+        } else {
+            $price = null;
+        }
+
+        $res = app(\App\Services\Ai\SeverinoWhatsappAgentService::class)->sendLiveItemWonNotification(
+            $userId,
+            $itemId,
+            $liveId,
+            $price,
+            null,
+            forceSend: true,
+            overridePhone: $targetPhone
+        );
+
+        return response()->json([
+            'success' => $res['success'] ?? false,
+            'message' => ($res['success'] ?? false)
+                ? 'Mensagem de Peça Ganha na Live enviada com sucesso via Severino!'
+                : ('Erro ao enviar: ' . ($res['error'] ?? 'Falha desconhecida')),
+            'data' => $res,
+        ]);
+    }
+
+    /**
+     * Dispara o Fechamento de Fim de Live no WhatsApp via Severino / Evolution API
+     */
+    public function sendLiveClosing(Request $request)
+    {
+        $request->validate([
+            'live_id' => 'required|integer',
+            'user_id' => 'required|integer',
+            'target_phone' => 'nullable|string',
+            'use_test_phone' => 'nullable|boolean',
+        ]);
+
+        $liveId = (int) $request->input('live_id');
+        $userId = (int) $request->input('user_id');
+        $targetPhone = $request->filled('target_phone') ? trim((string) $request->input('target_phone')) : null;
+        $useTestPhone = $request->boolean('use_test_phone', true);
+
+        $res = app(\App\Services\Ai\SeverinoWhatsappAgentService::class)->sendLiveClosingMessage(
+            $userId,
+            $liveId,
+            overridePhone: $targetPhone,
+            useTestPhone: $useTestPhone
+        );
+
+        return response()->json([
+            'success' => $res['success'] ?? false,
+            'flow' => $res['flow'] ?? null,
+            'flow_label' => $res['flow_label'] ?? null,
+            'target_phone' => $res['target_phone'] ?? null,
+            'message' => ($res['success'] ?? false)
+                ? "Fechamento da Live enviado pelo Severino para {$res['target_phone']}!\nCliente: {$res['client_name']}\nPerfil: {$res['flow_label']}\n\nAgora você pode responder no WhatsApp (ou simular abaixo) para conversar com o Severino!"
+                : ('Erro ao enviar: ' . ($res['error'] ?? 'Falha desconhecida')),
+            'data' => $res,
+        ]);
+    }
+
+    /**
+     * Permite simular uma resposta da cliente diretamente no painel para testar a conversa com o Severino
+     */
+    public function simulateClientReply(Request $request)
+    {
+        $request->validate([
+            'remote_jid' => 'nullable|string',
+            'user_id' => 'nullable|integer',
+            'body' => 'required|string|max:2000',
+        ]);
+
+        $remoteJid = trim((string) $request->input('remote_jid', ''));
+        $userId = $request->input('user_id') ? (int) $request->input('user_id') : null;
+        $body = trim((string) $request->input('body'));
+
+        $config = \App\Services\Ai\SeverinoWhatsappAgentService::getConfig();
+        if (!$remoteJid) {
+            $testDigits = preg_replace('/\D+/', '', $config['test_phone'] ?: '5548984136870');
+            $remoteJid = $testDigits . '@s.whatsapp.net';
+        }
+
+        $testCtx = \App\Services\Ai\SeverinoWhatsappAgentService::getTestContextForPhone($remoteJid);
+        if (!$userId && !empty($testCtx['user_id'])) {
+            $userId = (int) $testCtx['user_id'];
+        }
+
+        $user = $userId ? User::find($userId) : null;
+        $pushName = $user ? "🧪 [Teste: {$user->name}]" : 'Cliente (Simulação)';
+
+        // 1. Grava a mensagem simulada como recebida da cliente (inbound)
+        EvolutionMessage::create([
+            'user_id' => $user?->id,
+            'instance_name' => 'sacolinhas',
+            'remote_jid' => $remoteJid,
+            'push_name' => $pushName,
+            'direction' => 'inbound',
+            'status' => 'read',
+            'message_id' => 'SIM_' . uniqid(),
+            'from' => $remoteJid,
+            'to' => 'evolution',
+            'body' => $body,
+            'raw_payload' => ['simulated' => true],
+        ]);
+
+        // 2. Força o modo Severino ativo e processa a resposta da IA
+        \App\Services\Ai\SeverinoWhatsappAgentService::setSupervisionMode($remoteJid, $user?->id, 'severino');
+        $agentRes = app(\App\Services\Ai\SeverinoWhatsappAgentService::class)->handleIncomingClientMessage(
+            $remoteJid,
+            $user?->id,
+            $body,
+            forceReplyEvenIfHumanMode: true
+        );
+
+        return response()->json([
+            'success' => true,
+            'agent' => $agentRes,
         ]);
     }
 }

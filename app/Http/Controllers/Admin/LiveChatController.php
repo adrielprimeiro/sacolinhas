@@ -1254,6 +1254,23 @@ class LiveChatController extends Controller
             }
         }
 
+        // Disparo em tempo real via Severino / Evolution API (Modo Teste ou Modo Live)
+        $severinoWhatsappResult = null;
+        if ($userId && (int) $liveBrechoId === 1) {
+            try {
+                $severinoWhatsappResult = app(\App\Services\Ai\SeverinoWhatsappAgentService::class)
+                    ->sendLiveItemWonNotification(
+                        (int) $userId,
+                        (int) $itemId,
+                        (int) $liveId,
+                        (float) $price,
+                        $targetLiveItem->codigo_live ?? null
+                    );
+            } catch (\Throwable $e) {
+                Log::warning('Erro ao enviar notificação de peça ganha na live via Severino: ' . $e->getMessage());
+            }
+        }
+
         // Totais das sacolinhas da live
         $totals = DB::table('sacolinhas')
             ->where('live_id', $liveId)
@@ -1273,6 +1290,7 @@ class LiveChatController extends Controller
         return response()->json([
             'success' => true,
             'message' => $message,
+            'severino_whatsapp' => $severinoWhatsappResult,
             'data' => [
                 'item_id' => $itemId,
                 'live_id' => $liveId,
@@ -3167,7 +3185,23 @@ class LiveChatController extends Controller
                 return $msgSuccess;
             });
 
-            return response()->json(['success' => true, 'message' => $msg]);
+            $severinoWhatsappResult = null;
+            try {
+                $severinoWhatsappResult = app(\App\Services\Ai\SeverinoWhatsappAgentService::class)
+                    ->sendLiveItemWonNotification(
+                        (int) $validated['user_id'],
+                        (int) $validated['item_id'],
+                        (int) $validated['live_id']
+                    );
+            } catch (\Throwable $e) {
+                Log::warning('Erro ao enviar notificação Severino em addToBag: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'severino_whatsapp' => $severinoWhatsappResult,
+            ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }

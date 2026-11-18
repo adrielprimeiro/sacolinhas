@@ -794,6 +794,11 @@ Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     Route::get('/chat-evolution/api/conversations', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getConversations']);
     Route::get('/chat-evolution/api/messages/{userId?}', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getMessages']);
     Route::post('/chat-evolution/api/send', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'sendMessage']);
+    Route::post('/chat-evolution/api/supervision', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'toggleSupervision']);
+    Route::match(['get', 'post'], '/chat-evolution/api/severino-config', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'severinoConfig']);
+    Route::post('/chat-evolution/api/send-live-item-test', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'sendLiveItemTest']);
+    Route::post('/chat-evolution/api/send-live-closing', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'sendLiveClosing']);
+    Route::post('/chat-evolution/api/simulate-client-reply', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'simulateClientReply']);
 })->withoutMiddleware([VerifyCsrfToken::class]);
 
 

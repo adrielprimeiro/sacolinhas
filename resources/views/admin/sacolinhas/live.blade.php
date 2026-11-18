@@ -67,6 +67,41 @@
 
         {{-- Coluna Direita: Sacolas da Live Selecionada --}}
         <div class="lg:col-span-7 space-y-6">
+            {{-- Painel de Controle / Teste do Severino no WhatsApp (Evolution API) --}}
+            <div class="bg-indigo-50 rounded-xl shadow-sm border border-indigo-200 p-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold shadow-sm">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-black text-indigo-950 uppercase tracking-wide flex items-center gap-1.5">
+                            Fluxo WhatsApp Severino (Chip Atual / Evolution)
+                            <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-200 text-amber-900 font-extrabold">Twilio Mantida em Paralelo</span>
+                        </h4>
+                        <p class="text-[11px] text-indigo-800">Teste o envio de peça ao clicar na live e o fechamento conversacional com o Severino.</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-lg border border-indigo-200">
+                        <span class="text-[10px] font-bold text-gray-600 uppercase">Tel Teste:</span>
+                        <input type="text" id="severino-test-phone" value="5548984136870" 
+                               onchange="salvarConfigSeverino()"
+                               class="w-28 text-xs font-extrabold text-gray-900 bg-transparent focus:outline-none" 
+                               title="Número que receberá as mensagens de teste do Severino">
+                    </div>
+                    <select id="severino-live-mode" onchange="salvarConfigSeverino()" 
+                            class="text-xs font-bold text-gray-900 bg-white border border-indigo-300 rounded-lg px-2.5 py-1.5 focus:outline-none">
+                        <option value="test">🧪 Clique na Live: Enviar p/ Tel Teste</option>
+                        <option value="live">🟢 Clique na Live: Enviar p/ Cliente Real</option>
+                        <option value="off">⚪ Clique na Live: Desativado</option>
+                    </select>
+                    <a href="/admin/chat-evolution" target="_blank" 
+                       class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition">
+                        <i class="fas fa-comments"></i> Supervisionar Chat
+                    </a>
+                </div>
+            </div>
+
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
                 <div class="flex justify-between items-center border-b border-gray-100 pb-3 flex-wrap gap-2">
                     <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2">
@@ -125,7 +160,124 @@
     let showingAllLives = false;
     let itemParaRemover = null;
 
-    document.addEventListener('DOMContentLoaded', carregarTodasAsLives);
+    document.addEventListener('DOMContentLoaded', () => {
+        carregarTodasAsLives();
+        carregarConfigSeverino();
+    });
+
+    async function carregarConfigSeverino() {
+        try {
+            const res = await fetch('/admin/chat-evolution/api/severino-config');
+            const data = await res.json();
+            if (data.success && data.config) {
+                const phoneInput = document.getElementById('severino-test-phone');
+                const modeSelect = document.getElementById('severino-live-mode');
+                if (phoneInput && data.config.test_phone) phoneInput.value = data.config.test_phone;
+                if (modeSelect && data.config.mode) modeSelect.value = data.config.mode;
+            }
+        } catch (e) {
+            console.warn('Erro ao carregar config do Severino:', e);
+        }
+    }
+
+    async function salvarConfigSeverino() {
+        const phoneInput = document.getElementById('severino-test-phone');
+        const modeSelect = document.getElementById('severino-live-mode');
+        try {
+            await fetch('/admin/chat-evolution/api/severino-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    test_phone: phoneInput ? phoneInput.value : '5548984136870',
+                    mode: modeSelect ? modeSelect.value : 'test'
+                })
+            });
+        } catch (e) {
+            console.warn('Erro ao salvar config do Severino:', e);
+        }
+    }
+
+    async function testarPecaLiveSeverino(liveId, userId, btn) {
+        const phoneInput = document.getElementById('severino-test-phone');
+        const modeSelect = document.getElementById('severino-live-mode');
+        const isTest = !modeSelect || modeSelect.value !== 'live';
+        const targetPhone = isTest ? (phoneInput?.value || '5548984136870') : '';
+
+        const msgConfirm = isTest
+            ? `Enviar notificação de "Peça Ganha na Live" desta cliente pelo Severino (Evolution API) para o número de teste (${targetPhone})?`
+            : `Enviar notificação de "Peça Ganha na Live" pelo Severino para o WhatsApp REAL desta cliente?`;
+
+        if (!confirm(msgConfirm)) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Enviando...';
+
+        try {
+            const res = await fetch('/admin/chat-evolution/api/send-live-item-test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    live_id: liveId,
+                    user_id: userId,
+                    target_phone: isTest ? targetPhone : null
+                })
+            });
+            const data = await res.json();
+            alert(data.message || (data.success ? 'Enviado com sucesso!' : 'Erro ao enviar.'));
+        } catch (e) {
+            alert('Erro de conexão ao enviar mensagem do Severino.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+    async function enviarFechamentoSeverino(liveId, userId, btn) {
+        const phoneInput = document.getElementById('severino-test-phone');
+        const modeSelect = document.getElementById('severino-live-mode');
+        const isTest = !modeSelect || modeSelect.value !== 'live';
+        const targetPhone = isTest ? (phoneInput?.value || '5548984136870') : '';
+
+        const msgConfirm = isTest
+            ? `Deseja enviar o FECHAMENTO DE FIM DE LIVE desta cliente pelo Severino (Evolution API) para o número de teste (${targetPhone})?\n\nVocê poderá responder no WhatsApp (ou em /admin/chat-evolution) como se fosse a cliente para testar cancelar itens, cotar frete ou pedir o Pix!`
+            : `Deseja enviar o FECHAMENTO DE FIM DE LIVE pelo Severino para o WhatsApp REAL desta cliente?`;
+
+        if (!confirm(msgConfirm)) return;
+
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Enviando...';
+
+        try {
+            const res = await fetch('/admin/chat-evolution/api/send-live-closing', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    live_id: liveId,
+                    user_id: userId,
+                    use_test_phone: isTest,
+                    target_phone: isTest ? targetPhone : null
+                })
+            });
+            const data = await res.json();
+            alert(data.message || (data.success ? 'Fechamento enviado com sucesso!' : 'Erro ao enviar.'));
+        } catch (e) {
+            alert('Erro de conexão ao enviar fechamento pelo Severino.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
 
     async function carregarTodasAsLives() {
         const body = document.getElementById('lives-table-body');
@@ -264,13 +416,23 @@
                             <span class="text-xs text-gray-450 block">ID: ${bag.client.id}</span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 flex-wrap">
                         <button onclick="enviarMensagemInicial(${currentLiveId}, ${bag.client.id}, this)" 
-                                class="bg-green-600 hover:bg-green-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wide flex items-center gap-1 transition shadow-sm"
-                                title="Enviar mensagem inicial da live">
-                            <i class="fab fa-whatsapp text-sm"></i> Msg Inicial
+                                class="bg-green-600 hover:bg-green-700 text-white font-extrabold px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wide flex items-center gap-1 transition shadow-sm"
+                                title="Testar Msg Inicial via Twilio (Portal)">
+                            <i class="fab fa-whatsapp text-xs"></i> Msg Inicial (Twilio)
                         </button>
-                        <div class="text-right">
+                        <button onclick="testarPecaLiveSeverino(${currentLiveId}, ${bag.client.id}, this)" 
+                                class="bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wide flex items-center gap-1 transition shadow-sm"
+                                title="Simular clique na cliente durante a live (Severino avisa a peça ganha no WhatsApp)">
+                            <i class="fas fa-gift text-xs"></i> Peça Live (Severino)
+                        </button>
+                        <button onclick="enviarFechamentoSeverino(${currentLiveId}, ${bag.client.id}, this)" 
+                                class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wide flex items-center gap-1 transition shadow-sm"
+                                title="Enviar Fechamento Completo no WhatsApp com o Severino (Evolution API)">
+                            <i class="fas fa-robot text-xs"></i> Fechamento Zap (Severino)
+                        </button>
+                        <div class="text-right ml-1">
                             <span class="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[10px] font-bold uppercase tracking-wide">Itens: ${bag.total_items}</span>
                             <div class="font-black text-green-600 text-sm mt-0.5">${bag.formatted_total}</div>
                         </div>

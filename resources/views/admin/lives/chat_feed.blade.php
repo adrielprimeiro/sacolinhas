@@ -396,6 +396,22 @@
                     </button>
                     <span id="header-tiktok-time" class="text-[10px] text-gray-400 hidden xl:inline"></span>
                 </div>
+
+                <!-- Severino WhatsApp (Aviso de Peça ao Clicar na Cliente) -->
+                <div class="flex items-center bg-indigo-950/90 p-1 px-2.5 rounded-xl border border-indigo-500/60 gap-2 shadow-sm">
+                    <span class="flex items-center gap-1 font-extrabold text-xs text-indigo-200">
+                        <i class="fas fa-robot text-emerald-400 text-xs"></i>
+                        <span>Severino Zap:</span>
+                    </span>
+                    <select id="feed-severino-mode" onchange="saveFeedSeverinoConfig()" class="bg-gray-900 text-white text-[11px] font-bold rounded-lg px-2 py-0.5 border border-indigo-400/50 focus:outline-none cursor-pointer" title="Definir se o Severino envia mensagem no WhatsApp ao clicar na cliente na fila do código">
+                        <option value="test">🧪 Teste (Meu Zap)</option>
+                        <option value="live">🟢 Cliente Real</option>
+                        <option value="off">⚪ Desativado</option>
+                    </select>
+                    <a href="/admin/chat-evolution" target="_blank" class="text-[10px] font-black bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded-lg transition" title="Abrir Chat Evolution & Supervisão do Severino">
+                        <i class="fab fa-whatsapp"></i> Chat
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -4242,12 +4258,51 @@
                     if (resData.stats) {
                         updateSacolinhasStatsUI(resData.stats);
                     }
+                    if (resData.severino_whatsapp && resData.severino_whatsapp.success) {
+                        showToast(`📲 Severino avisou @${cleanUser} no WhatsApp!`, 'success');
+                    }
                 }
             } catch(e) {
                 console.warn('[Scan] Erro ao vincular comprador no servidor:', e);
             }
         }
     }
+
+    async function loadFeedSeverinoConfig() {
+        try {
+            const res = await fetch('/admin/chat-evolution/api/severino-config');
+            const data = await res.json();
+            if (data.success && data.config) {
+                const sel = document.getElementById('feed-severino-mode');
+                if (sel && data.config.mode) sel.value = data.config.mode;
+            }
+        } catch (e) {}
+    }
+
+    async function saveFeedSeverinoConfig() {
+        const sel = document.getElementById('feed-severino-mode');
+        if (!sel) return;
+        try {
+            const res = await fetch('/admin/chat-evolution/api/severino-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ mode: sel.value })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const labels = {
+                    test: '🧪 Modo Teste: enviando aviso da peça para o número de teste!',
+                    live: '🟢 Modo Cliente Real: enviando aviso da peça para o WhatsApp da cliente!',
+                    off: '⚪ Envio automático no clique desativado.'
+                };
+                showToast(labels[sel.value] || 'Configuração do Severino salva!', 'info');
+            }
+        } catch (e) {}
+    }
+    document.addEventListener('DOMContentLoaded', loadFeedSeverinoConfig);
 
     async function unlinkSpecificBuyerAction(scanId, username, userId, sacolinhaId) {
         const item = bgScanItems.find(x => x.id === scanId);

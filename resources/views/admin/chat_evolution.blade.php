@@ -100,8 +100,13 @@
 						<small id="currentUserPhone" class="opacity-75"></small>
 					</div>
 				</div>
-				<div id="connectionStatusIndicator">
-					<span class="badge bg-secondary">Checando...</span>
+				<div class="d-flex align-items-center gap-2 flex-wrap">
+					<button type="button" id="btnToggleSupervision" onclick="toggleConversationSupervision()" 
+							class="btn btn-sm fw-bold" style="display:none; border-radius:999px; font-size:0.78rem;">
+					</button>
+					<div id="connectionStatusIndicator">
+						<span class="badge bg-secondary">Checando...</span>
+					</div>
 				</div>
 			</div>
 
@@ -112,12 +117,44 @@
 				</div>
 			</div>
 
+			<!-- Barra de Simulação Rápida para Testar Respostas da Cliente com o Severino -->
+			<div id="simulatorArea" style="display:none; background:#eef2ff; border-top:1px solid #c7d2fe; padding:8px 14px;">
+				<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+					<span class="fw-bold" style="font-size:0.75rem; color:#312e81;">
+						<i class="bi bi-magic me-1"></i>Simular Resposta da Cliente (Testar Severino IA):
+					</span>
+					<div class="d-flex flex-wrap gap-1">
+						<button type="button" class="btn btn-sm py-0 px-2 fw-semibold" style="font-size:0.72rem; background:#4f46e5; color:#fff;" onclick="sendSimulatedReply('Quero adicionar à sacolinha e pagar no Pix!')">
+							1️⃣ Guardar na Sacolinha (Pix)
+						</button>
+						<button type="button" class="btn btn-sm py-0 px-2 fw-semibold" style="font-size:0.72rem; background:#7c3aed; color:#fff;" onclick="sendSimulatedReply('Quero cancelar algum item da live de hoje, quais peças estão aí?')">
+							2️⃣ Cancelar algum item
+						</button>
+						<button type="button" class="btn btn-sm py-0 px-2 fw-semibold" style="font-size:0.72rem; background:#059669; color:#fff;" onclick="sendSimulatedReply('Quanto fica o frete pra enviar tudo pra minha casa?')">
+							3️⃣ Cotar Frete / Envio
+						</button>
+						<button type="button" class="btn btn-sm py-0 px-2 fw-semibold" style="font-size:0.72rem; background:#d97706; color:#fff;" onclick="sendSimulatedReply('Preciso falar com uma atendente humana por favor')">
+							4️⃣ Chamar Atendente
+						</button>
+					</div>
+				</div>
+				<div class="d-flex gap-2 align-items-center">
+					<input type="text" id="simulatedClientInput" class="form-control form-control-sm" 
+						   style="font-size:0.8rem; background:#fff; color:#111827; border-color:#a5b4fc;"
+						   placeholder="Ou digite aqui como se fosse a cliente respondendo no WhatsApp (ex: Cancela a primeira peça)..."
+						   onkeydown="if(event.key==='Enter'){ event.preventDefault(); sendSimulatedReply(this.value); }">
+					<button type="button" id="btnSimulateReply" class="btn btn-sm fw-bold" style="background:#3730a3; color:#fff; white-space:nowrap;" onclick="sendSimulatedReply(document.getElementById('simulatedClientInput').value)">
+						Simular Cliente
+					</button>
+				</div>
+			</div>
+
 			<div class="chat-input" id="chatInputArea" style="display:none;">
 				<input type="file" id="fileInput" style="display:none;">
 				<button class="btn btn-light rounded-circle" type="button" onclick="document.getElementById('fileInput').click()" title="Anexar arquivo">
 					<i class="bi bi-paperclip fs-5 text-secondary"></i>
 				</button>
-				<textarea class="form-control" id="messageInput" rows="1" placeholder="Digite uma mensagem..."></textarea>
+				<textarea class="form-control" id="messageInput" rows="1" placeholder="Digite como Atendente (pausa o Severino automaticamente)..."></textarea>
 				<button class="btn btn-success rounded-circle" id="btnSendMessage" title="Enviar">
 					<i class="bi bi-send-fill fs-5"></i>
 				</button>
@@ -169,8 +206,107 @@
 			userId: null,
 			remoteJid: null,
 			name: '',
-			phone: ''
+			phone: '',
+			supervisionMode: 'severino'
 		};
+
+		function updateSupervisionButtonUI(mode) {
+			activeConv.supervisionMode = mode || 'severino';
+			const btn = document.getElementById('btnToggleSupervision');
+			if (!btn) return;
+
+			if (!activeConv.remoteJid && !activeConv.userId) {
+				btn.style.display = 'none';
+				return;
+			}
+
+			btn.style.display = 'inline-flex';
+			if (activeConv.supervisionMode === 'human') {
+				btn.style.backgroundColor = '#f59e0b';
+				btn.style.color = '#111827';
+				btn.style.border = '1px solid #d97706';
+				btn.innerHTML = '👩‍💻 Humano no Comando (Clique p/ Ativar Severino)';
+			} else {
+				btn.style.backgroundColor = '#e0e7ff';
+				btn.style.color = '#1e1b4b';
+				btn.style.border = '1px solid #818cf8';
+				btn.innerHTML = '🤖 Severino Ativo (Clique p/ Assumir)';
+			}
+		}
+
+		async function toggleConversationSupervision() {
+			if (!activeConv.remoteJid && !activeConv.userId) return;
+			const nextMode = activeConv.supervisionMode === 'severino' ? 'human' : 'severino';
+			try {
+				const res = await fetch('/admin/chat-evolution/api/supervision', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-TOKEN': csrfToken
+					},
+					body: JSON.stringify({
+						remote_jid: activeConv.remoteJid,
+						user_id: activeConv.userId,
+						mode: nextMode
+					})
+				});
+				const data = await res.json();
+				if (data.success) {
+					updateSupervisionButtonUI(data.supervision_mode);
+					loadConversations();
+				}
+			} catch (e) {
+				console.error(e);
+			}
+		}
+
+		async function sendSimulatedReply(text) {
+			const cleanText = (text || '').trim();
+			if (!cleanText) return;
+			if (!activeConv.remoteJid && !activeConv.userId) {
+				alert('Selecione uma conversa ao lado primeiro.');
+				return;
+			}
+
+			const btnSim = document.getElementById('btnSimulateReply');
+			const inputSim = document.getElementById('simulatedClientInput');
+			if (btnSim) {
+				btnSim.disabled = true;
+				btnSim.innerText = 'Pensando...';
+			}
+
+			try {
+				const res = await fetch('/admin/chat-evolution/api/simulate-client-reply', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-TOKEN': csrfToken
+					},
+					body: JSON.stringify({
+						remote_jid: activeConv.remoteJid,
+						user_id: activeConv.userId,
+						body: cleanText
+					})
+				});
+				const data = await res.json();
+				if (data.success) {
+					if (inputSim) inputSim.value = '';
+					updateSupervisionButtonUI('severino');
+					await loadMessages();
+					await loadConversations();
+				} else {
+					alert('Erro ao simular resposta.');
+				}
+			} catch (e) {
+				console.error(e);
+				alert('Erro na comunicação ao simular resposta.');
+			} finally {
+				if (btnSim) {
+					btnSim.disabled = false;
+					btnSim.innerText = 'Simular Cliente';
+				}
+			}
+		}
 
 		// Checa status de conexão
 		async function checkStatus() {
@@ -231,6 +367,14 @@
 					const phone = c.display_phone || '';
 					const time = c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
 					const unread = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : '';
+					const supMode = c.supervision_mode || 'severino';
+					const supBadge = supMode === 'human'
+						? `<span style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; font-size:0.65rem; font-weight:700; padding:1px 6px; border-radius:999px;">👩‍💻 Humano</span>`
+						: `<span style="background:#e0e7ff; color:#1e1b4b; border:1px solid #818cf8; font-size:0.65rem; font-weight:700; padding:1px 6px; border-radius:999px;">🤖 Severino</span>`;
+
+					if (isSelected) {
+						updateSupervisionButtonUI(supMode);
+					}
 
 					return `
 						<div class="conversation-item ${isSelected ? 'active' : ''}" 
@@ -238,6 +382,7 @@
 							 data-remote-jid="${escapeHtml(c.remote_jid || '')}" 
 							 data-name="${escapeHtml(name)}" 
 							 data-phone="${escapeHtml(phone)}"
+							 data-sup-mode="${supMode}"
 							 onclick="handleConvClick(this)">
 							<div class="conversation-avatar">${initial}</div>
 							<div class="conversation-info">
@@ -245,9 +390,12 @@
 									<h6 class="conversation-name text-truncate">${escapeHtml(name)}</h6>
 									<span class="conversation-time">${time}</span>
 								</div>
-								<div class="conversation-last-message">
-									${c.last_message_direction === 'outbound' ? '<i class="bi bi-check2 text-muted"></i> ' : ''}
-									${c.last_message_has_media ? '<i class="bi bi-paperclip"></i> Anexo' : escapeHtml(c.last_message_body || '')}
+								<div class="d-flex justify-content-between align-items-center mt-1">
+									<div class="conversation-last-message">
+										${c.last_message_direction === 'outbound' ? '<i class="bi bi-check2 text-muted"></i> ' : ''}
+										${c.last_message_has_media ? '<i class="bi bi-paperclip"></i> Anexo' : escapeHtml(c.last_message_body || '')}
+									</div>
+									${supBadge}
 								</div>
 							</div>
 							${unread}
@@ -264,15 +412,19 @@
 			const remoteJid = el.getAttribute('data-remote-jid') || null;
 			const name = el.getAttribute('data-name') || '';
 			const phone = el.getAttribute('data-phone') || '';
-			selectConversation(userId, remoteJid, name, phone);
+			const supMode = el.getAttribute('data-sup-mode') || 'severino';
+			selectConversation(userId, remoteJid, name, phone, supMode);
 		}
 
 		// Seleciona conversa
-		async function selectConversation(userId, remoteJid, name, phone) {
-			activeConv = { userId, remoteJid, name, phone };
+		async function selectConversation(userId, remoteJid, name, phone, supMode = 'severino') {
+			activeConv = { userId, remoteJid, name, phone, supervisionMode: supMode };
 			document.getElementById('currentUserName').innerText = name;
 			document.getElementById('currentUserPhone').innerText = phone;
 			document.getElementById('chatInputArea').style.display = 'flex';
+			const simArea = document.getElementById('simulatorArea');
+			if (simArea) simArea.style.display = 'block';
+			updateSupervisionButtonUI(supMode);
 
 			loadMessages();
 			loadConversations();
@@ -295,18 +447,28 @@
 					return;
 				}
 
-				container.innerHTML = msgs.map(m => `
-					<div class="message-row">
-						<div class="message-bubble ${m.direction === 'outbound' ? 'sent-message' : 'received-message'}">
-							${m.media_url ? `<div class="mb-2"><a href="${m.media_url}" target="_blank" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark"></i> Ver anexo</a></div>` : ''}
-							<div class="message-content">${m.body ? escapeHtml(m.body) : ''}</div>
-							<div class="timestamp">
-								<span>${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-								${m.direction === 'outbound' ? `<i class="bi ${m.status === 'read' ? 'bi-check2-all text-primary' : (m.status === 'failed' ? 'bi-exclamation-circle text-danger' : 'bi-check2')}"></i>` : ''}
+				container.innerHTML = msgs.map(m => {
+					const isSeverino = m.from === 'severino';
+					const senderBadge = m.direction === 'outbound'
+						? (isSeverino
+							? `<div style="font-size:0.7rem; font-weight:700; color:#3730a3; margin-bottom:3px;">🤖 Severino (IA)</div>`
+							: `<div style="font-size:0.7rem; font-weight:700; color:#065f46; margin-bottom:3px;">👩‍💻 ${escapeHtml(m.admin_name || 'Atendente')}</div>`)
+						: '';
+
+					return `
+						<div class="message-row">
+							<div class="message-bubble ${m.direction === 'outbound' ? 'sent-message' : 'received-message'}">
+								${senderBadge}
+								${m.media_url ? `<div class="mb-2"><a href="${m.media_url}" target="_blank" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark"></i> Ver anexo</a></div>` : ''}
+								<div class="message-content">${m.body ? escapeHtml(m.body) : ''}</div>
+								<div class="timestamp">
+									<span>${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+									${m.direction === 'outbound' ? `<i class="bi ${m.status === 'read' ? 'bi-check2-all text-primary' : (m.status === 'failed' ? 'bi-exclamation-circle text-danger' : 'bi-check2')}"></i>` : ''}
+								</div>
 							</div>
 						</div>
-					</div>
-				`).join('');
+					`;
+				}).join('');
 
 				container.scrollTop = container.scrollHeight;
 			} catch (e) {
@@ -345,6 +507,7 @@
 				if (data.success) {
 					input.value = '';
 					fileInput.value = '';
+					updateSupervisionButtonUI('human');
 					loadMessages();
 					loadConversations();
 				} else {

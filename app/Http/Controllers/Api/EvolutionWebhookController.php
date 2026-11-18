@@ -135,9 +135,32 @@ class EvolutionWebhookController extends Controller
             return;
         }
 
-        // Evita duplicatas pelo messageId
-        if ($messageId && EvolutionMessage::where('message_id', $messageId)->exists()) {
+        // Evita duplicatas pelo messageId (ex: mensagens já gravadas pelo sistema/Severino)
+        if ($messageId && (EvolutionMessage::where('message_id', $messageId)->exists() || \Illuminate\Support\Facades\Cache::has('evo_api_sent_' . $messageId))) {
             return;
+        }
+
+        // Verifica se há um contexto de teste ativo para este número (ex: 5548984136870)
+        $testCtx = \App\Services\Ai\SeverinoWhatsappAgentService::getTestContextForPhone($remoteJid);
+        if ($testCtx && !empty($testCtx['user_id'])) {
+            $testUser = User::find($testCtx['user_id']);
+            if ($testUser) {
+                $user = $testUser;
+                $pushName = "🧪 [Teste: {$testUser->name}]";
+            }
+        }
+
+        // Se a mensagem veio do próprio aparelho conectado (self-chat 84136870) digitada manualmente no celular (não enviada pela API),
+        // e existe um contexto de teste ativo, tratamos como resposta de teste da cliente para o Severino responder!
+        $isSelfChatTestReply = false;
+        if ($fromMe && str_ends_with($digits, '84136870') && $testCtx) {
+            $isSelfChatTestReply = true;
+            $fromMe = false;
+        }
+
+        // Se um operador humano respondeu manualmente pelo celular para outro contato, pausa o Severino automaticamente
+        if ($fromMe && !$isSelfChatTestReply) {
+            \App\Services\Ai\SeverinoWhatsappAgentService::setSupervisionMode($remoteJid, $user?->id, 'human', 'Operador respondeu pelo celular');
         }
 
         EvolutionMessage::create([
@@ -154,6 +177,19 @@ class EvolutionWebhookController extends Controller
             'media_url' => $mediaUrl,
             'raw_payload' => $data,
         ]);
+
+        // Se é mensagem recebida da cliente (ou simulação de teste), aciona o Severino se estiver ativo na conversa
+        if (!$fromMe && trim((string) $body) !== '') {
+            try {
+                app(\App\Services\Ai\SeverinoWhatsappAgentService::class)->handleIncomingClientMessage(
+                    $remoteJid,
+                    $user?->id,
+                    trim((string) $body)
+                );
+            } catch (\Throwable $e) {
+                Log::error('Erro ao acionar SeverinoWhatsappAgentService no webhook: ' . $e->getMessage());
+            }
+        }
     }
 
     protected function handleMessageUpdate(array $data)

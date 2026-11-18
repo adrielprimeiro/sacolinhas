@@ -242,7 +242,7 @@ class EvolutionApiService
     /**
      * Envia mensagem de texto
      */
-    public function sendText(string $to, string $text): array
+    public function sendText(string $to, string $text, int $delay = 1500): array
     {
         $target = $to;
         if (str_contains($target, '@lid')) {
@@ -263,7 +263,7 @@ class EvolutionApiService
             $payload = [
                 'number' => $number,
                 'text' => $text,
-                'delay' => 1200, // delay de digitação em ms
+                'delay' => $delay, // delay de digitação em ms
                 'linkPreview' => true,
             ];
 
@@ -280,9 +280,15 @@ class EvolutionApiService
                 }
             }
 
+            $msgId = $json['key']['id'] ?? null;
+            if ($msgId) {
+                \Illuminate\Support\Facades\Cache::put('evo_api_sent_' . $msgId, true, 600);
+            }
+
             return [
                 'success' => $resp->successful(),
-                'message_id' => $json['key']['id'] ?? null,
+                'message_id' => $msgId,
+                'remote_jid' => $json['key']['remoteJid'] ?? ($digits ? $digits . '@s.whatsapp.net' : $target),
                 'status' => $resp->successful() ? 'sent' : 'failed',
                 'error' => $errorMessage,
                 'raw' => $json ?? $resp->body(),
@@ -340,9 +346,15 @@ class EvolutionApiService
                 }
             }
 
+            $msgId = $json['key']['id'] ?? null;
+            if ($msgId) {
+                \Illuminate\Support\Facades\Cache::put('evo_api_sent_' . $msgId, true, 600);
+            }
+
             return [
                 'success' => $resp->successful(),
-                'message_id' => $json['key']['id'] ?? null,
+                'message_id' => $msgId,
+                'remote_jid' => $json['key']['remoteJid'] ?? ($digits ? $digits . '@s.whatsapp.net' : $target),
                 'status' => $resp->successful() ? 'sent' : 'failed',
                 'error' => $errorMessage,
                 'raw' => $json ?? $resp->body(),
