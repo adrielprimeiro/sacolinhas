@@ -230,13 +230,27 @@ class SeverinoWhatsappAgentService
         $precoFmt = 'R$ ' . number_format($precoPeca, 2, ',', '.');
         $subtotalFmt = 'R$ ' . number_format($subtotalLive, 2, ',', '.');
 
+        // Verifica se é a 1ª compra da cliente na vida
+        $isFirstPurchase = !DB::table('pedidos')
+            ->where('user_id', $userId)
+            ->where('status_pagamento', 'aprovado')
+            ->where('status_pedido', '!=', 'cancelado')
+            ->exists();
+
         if ($qtdItensLive <= 1) {
-            $frases = [
-                "Peça garantida na live! 🎉",
-                "Anotado pra você! ✨",
-                "Peça reservada com sucesso! 💖",
-                "Arrasou no garimpo! 🎉",
-            ];
+            if ($isFirstPurchase) {
+                $frases = [
+                    "Oi! Aqui é da Minha Mania Brechó! 💖\nPeça garantida na live:",
+                    "Aqui é da equipe Minha Mania Brechó! 🎉\nPeça garantida na live:",
+                ];
+            } else {
+                $frases = [
+                    "Peça garantida na live! 🎉",
+                    "Anotado pra você! ✨",
+                    "Peça reservada com sucesso! 💖",
+                    "Arrasou no garimpo! 🎉",
+                ];
+            }
         } else {
             $frases = [
                 "Mais uma peça garantida! 🎉",
@@ -365,83 +379,82 @@ class SeverinoWhatsappAgentService
 
         $listaPecasTxt = implode("\n", $linhasItens);
         $subtotalFmt = 'R$ ' . number_format($subtotalLive, 2, ',', '.');
+        $qtdPecasTermo = $qtdTotalLive === 1 ? '1 peça' : "{$qtdTotalLive} peças";
 
-        // Cálculo de Carteira (Créditos vs Débitos) idêntico ao Portal
+        // Cálculo de Carteira (Créditos vs Débitos) com rótulos claros solicitados pelo usuário
         $linhasValores = [];
-        $linhasValores[] = "📦 *Subtotal da Live ({$qtdTotalLive} " . ($qtdTotalLive === 1 ? 'peça' : 'peças') . "):* {$subtotalFmt}";
+        $linhasValores[] = "🛍️ *Valor da Live ({$qtdPecasTermo}):* {$subtotalFmt}";
 
         if ($saldoCliente > 0) {
             $saldoFmt = 'R$ ' . number_format($saldoCliente, 2, ',', '.');
-            $linhasValores[] = "💰 *Saldo em Carteira (Créditos):* - {$saldoFmt}";
+            $linhasValores[] = "💰 *Seus Créditos com a Mania:* {$saldoFmt}";
             $totalPagar = max(0, $subtotalLive - $saldoCliente);
+            $totalPagarFmt = 'R$ ' . number_format($totalPagar, 2, ',', '.');
+            $linhasValores[] = "✨ *A pagar (descontando seu crédito):* *{$totalPagarFmt}*";
+
+            if ($saldoCliente > $subtotalLive) {
+                $restanteCredito = $saldoCliente - $subtotalLive;
+                $restanteFmt = 'R$ ' . number_format($restanteCredito, 2, ',', '.');
+                $linhasValores[] = "*(Você ainda tem {$restanteFmt} de crédito restante)*";
+            }
         } elseif ($saldoCliente < 0) {
-            $saldoFmt = 'R$ -' . number_format(abs($saldoCliente), 2, ',', '.');
-            $linhasValores[] = "⚠️ *Saldo em Carteira (Débitos):* {$saldoFmt}";
+            $saldoFmt = 'R$ ' . number_format(abs($saldoCliente), 2, ',', '.');
+            $linhasValores[] = "⚠️ *Seus Débitos com a Mania:* {$saldoFmt}";
             $totalPagar = $subtotalLive + abs($saldoCliente);
+            $totalPagarFmt = 'R$ ' . number_format($totalPagar, 2, ',', '.');
+            $linhasValores[] = "✨ *A pagar (adicionando seu débito):* *{$totalPagarFmt}*";
         } else {
             $totalPagar = $subtotalLive;
+            $totalPagarFmt = 'R$ ' . number_format($totalPagar, 2, ',', '.');
+            $linhasValores[] = "✨ *Total a pagar:* *{$totalPagarFmt}*";
         }
 
-        $totalPagarFmt = 'R$ ' . number_format($totalPagar, 2, ',', '.');
-        $linhasValores[] = "✨ *Total do Pedido:* *{$totalPagarFmt}*";
+        if ($itensAnterioresCount > 0) {
+            $termoSacola = $itensAnterioresCount === 1 ? '1 peça guardada' : "{$itensAnterioresCount} peças guardadas";
+            $linhasValores[] = "*(Sua sacolinha já tem {$termoSacola})*";
+        }
+
         $resumoFinanceiroTxt = implode("\n", $linhasValores);
 
-        // Monta o texto personalizado conforme as 5 opções de perfil
-        $text = match ($flow) {
-            'first_purchase' => "Oii *{$primeiroNome}*! 💖 Que alegria ter você na sua *primeira compra* aqui na *Minha Mania*!\n\n"
-                . "A live acabou de encerrar e eu separei com muito carinho o resumo do seu garimpo de hoje:\n\n"
-                . "{$listaPecasTxt}\n\n"
-                . "{$resumoFinanceiroTxt}\n\n"
-                . "Como é sua primeira vez com a gente, funciona super fácil por aqui mesmo no WhatsApp:\n"
-                . "1️⃣ *Guardar na Sacolinha:* Você paga apenas as peças de hoje (*{$totalPagarFmt}*) e nós guardamos tudo aqui na loja por até 30 dias pra você ir juntando de outras lives e pagar um frete só no final!\n"
-                . "2️⃣ *Enviar Agora:* Eu já calculo o frete pro seu CEP e a gente despacha pra sua casa!\n"
-                . "3️⃣ *Ajustar ou Cancelar algum item:* Se quiser retirar alguma peça, é só me falar qual.\n\n"
-                . "Como você prefere fazer, *{$primeiroNome}*? Se quiser guardar na sacolinha, já te mando o Pix Copia e Cola ou link de cartão aqui mesmo! 😊",
-
-            'no_bag' => "Oii *{$primeiroNome}*! 💖 Que bom te ver de novo na nossa live!\n\n"
-                . "Aqui está o fechamento das peças que você garantiu hoje:\n\n"
-                . "{$listaPecasTxt}\n\n"
-                . "{$resumoFinanceiroTxt}\n\n"
-                . "Como você está sem sacolinha aberta no momento, me conta como prefere seguir:\n"
-                . "1️⃣ *Abrir uma Nova Sacolinha* (pagar só o pedido de hoje de *{$totalPagarFmt}* e deixar guardado pra acumular)\n"
-                . "2️⃣ *Pedir o Envio Imediato* (calculo o frete pro seu CEP agora mesmo)\n"
-                . "3️⃣ *Cancelar algum item* (se precisar tirar alguma peça da lista)\n\n"
-                . "É só me responder aqui que eu já gero o seu Pix ou link de pagamento! ✨",
-
-            'regular' => "Oii *{$primeiroNome}*! 💖 Obrigada por estar com a gente em mais uma live!\n\n"
-                . "Olha só o resumo das peças que você pegou hoje:\n\n"
-                . "{$listaPecasTxt}\n\n"
-                . "{$resumoFinanceiroTxt}\n"
-                . ($itensAnterioresCount > 0 ? "*(Você também já tem {$itensAnterioresCount} " . ($itensAnterioresCount === 1 ? 'peça guardada' : 'peças guardadas') . " na sua sacolinha aberta)*\n" : "") . "\n"
-                . "Como você quer fazer agora?\n"
-                . "1️⃣ *Adicionar à Sacolinha e Pagar* (*{$totalPagarFmt}* no Pix ou Cartão)\n"
-                . "2️⃣ *Fechar toda a Sacolinha e Enviar* (já cotamos o frete de todas as suas peças juntas)\n"
-                . "3️⃣ *Cancelar algum item ou cancelar tudo*\n\n"
-                . "Me diz aqui sua opção que eu já resolvo pra você na hora! 😊",
-
-            'clube' => "Oii *{$primeiroNome}*! 👑 Membro VIP do *Clube Mania*!\n\n"
-                . "Sua sacolinha da live de hoje já está atualizada! Confira suas peças abaixo:\n\n"
-                . "{$listaPecasTxt}\n\n"
-                . "{$resumoFinanceiroTxt}\n\n"
-                . "Como você deseja prosseguir com as peças de hoje?\n"
-                . "1️⃣ *Adicionar à Sacolinha e Pagar* (*{$totalPagarFmt}* via Pix ou Cartão)\n"
-                . "2️⃣ *Cancelar algum item* (me diga qual peça deseja excluir)\n"
-                . "3️⃣ *Cancelar Tudo* (excluir os itens desta live)\n"
-                . "4️⃣ *Solicitar Envio da Sacolinha* (cotar frete)\n\n"
-                . ($totalPagar <= 0
-                    ? "Como seus créditos em carteira já cobriram tudo, é só confirmar *1* que já deixo tudo quitado na sua sacolinha! 🎉"
-                    : "Se estiver tudo certinho e quiser manter na sacolinha, me avisa que já te envio o *Pix Copia e Cola* aqui! ✨"),
-
-            default => "Oii *{$primeiroNome}*! 💖 Passando com o resumo das peças que você separou na live de hoje:\n\n"
-                . "{$listaPecasTxt}\n\n"
-                . "{$resumoFinanceiroTxt}\n\n"
-                . "⚠️ Notamos que sua sacolinha possui pendência ou prazo vencido. Para manter as peças de hoje garantidas, podemos regularizar tudo agora mesmo por aqui!\n\n"
-                . "Você prefere:\n"
-                . "1️⃣ *Regularizar no Pix ou Cartão e manter na Sacolinha*\n"
-                . "2️⃣ *Regularizar e já pedir o Envio (cotar frete)*\n"
-                . "3️⃣ *Cancelar algum item da live de hoje*\n\n"
-                . "Me chama aqui que te ajudo a resolver rapidinho! 😊",
+        // Opções de ação diretas, sem repetição de informações ou saudações longas
+        $opcao1 = match ($flow) {
+            'first_purchase' => $totalPagar <= 0
+                ? "1️⃣ *Guardar na Sacolinha* (seu crédito já quitou tudo! 🎉)"
+                : "1️⃣ *Guardar na Sacolinha e Pagar* (*{$totalPagarFmt}* no Pix ou Cartão)",
+            'no_bag' => $totalPagar <= 0
+                ? "1️⃣ *Abrir Sacolinha* (seu crédito já quitou tudo! 🎉)"
+                : "1️⃣ *Abrir Sacolinha e Pagar* (*{$totalPagarFmt}* no Pix ou Cartão)",
+            'clube' => $totalPagar <= 0
+                ? "1️⃣ *Adicionar à Sacolinha* (seu crédito já quitou tudo! 🎉)"
+                : "1️⃣ *Adicionar à Sacolinha e Pagar* (*{$totalPagarFmt}* via Pix ou Cartão)",
+            'pendencies' => $totalPagar <= 0
+                ? "1️⃣ *Regularizar e manter na Sacolinha* (crédito quitou tudo! 🎉)"
+                : "1️⃣ *Regularizar e manter na Sacolinha* (*{$totalPagarFmt}* no Pix ou Cartão)",
+            default => $totalPagar <= 0
+                ? "1️⃣ *Adicionar à Sacolinha* (seu crédito já quitou tudo! 🎉)"
+                : "1️⃣ *Adicionar à Sacolinha e Pagar* (*{$totalPagarFmt}* no Pix ou Cartão)",
         };
+
+        $opcao2 = match ($flow) {
+            'first_purchase', 'no_bag' => "2️⃣ *Enviar Agora* (já cotamos o frete pro seu CEP)",
+            'clube' => "2️⃣ *Fechar toda a Sacolinha e Enviar* (com frete fixo do Clube)",
+            'pendencies' => "2️⃣ *Regularizar e Enviar tudo* (já cotamos o frete)",
+            default => "2️⃣ *Fechar toda a Sacolinha e Enviar* (já cotamos o frete)",
+        };
+
+        $iconeTitulo = match ($flow) {
+            'clube' => '👑',
+            'pendencies' => '⚠️',
+            default => '✨',
+        };
+
+        $text = "*Fechamento da live de hoje:* {$iconeTitulo}\n\n"
+            . "{$resumoFinanceiroTxt}\n\n"
+            . "Como você quer fazer agora?\n"
+            . "{$opcao1}\n"
+            . "{$opcao2}\n"
+            . "3️⃣ *Cancelar algum item ou cancelar tudo*\n\n"
+            . "Me diz aqui sua opção que eu já resolvo pra você na hora! 😊";
 
         $isTest = ($overridePhone !== null) || $useTestPhone || (($config['mode'] ?? 'test') === 'test');
         $targetPhone = $overridePhone ?: ($isTest ? ($config['test_phone'] ?: '5548984136870') : ($user->whatsapp ?: ($user->phone ?: $user->telefone_principal)));
