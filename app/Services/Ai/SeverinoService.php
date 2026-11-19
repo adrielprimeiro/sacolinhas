@@ -219,6 +219,12 @@ class SeverinoService
             "  5. PASSO 3 - FRETE: Se o valor recebido for maior que o valor das peças da sacolinha, chame `simular_frete_sacolinha(user_id)`! A diferença quase sempre é o FRETE (PAC, Sedex ou transportadora).\n" .
             "  6. PASSO 4 - CARTEIRA: Se ainda houver sobra ou falta, consulte o saldo da cliente em `resumo_financeiro_cliente` para ver se ela usou créditos.\n" .
             "  7. CONCLUSÃO MATEMÁTICA: Formule uma resposta dedutiva completa provando a correlação: ex: 'O PIX de R$ 171,82 recebido no Inter refere-se à sacolinha da Juliane (R$ 150,00 da peça X) + frete PAC cotado no Melhor Envio (R$ 21,82) = R$ 171,82.'\n" .
+            "- INVESTIGAÇÃO DE ERRO OU DIVERGÊNCIA DE SALDO BANCÁRIO (MERCADO PAGO, INTER, ETC.):\n" .
+            "  1. Quando o usuário perguntar sobre erro ou divergência no saldo de uma conta bancária (ex: 'Consegue encontrar o erro no saldo do Mercado Pago 0,33 com o sistema 6,80?', 'Por que o saldo do Inter não bate?'):\n" .
+            "  2. PROIBIÇÃO ABSOLUTA DE PEDIR 'SINAL VERDE' OU OFERECER OPÇÕES SEM EXECUTAR: É terminantemente proibido responder 'Você gostaria que eu...', 'Prefere que eu...', 'Basta me dar o sinal verde', 'Posso verificar se quiser'. A PERGUNTA DO USUÁRIO JÁ É SUA ORDEM DIRETA DE EXECUÇÃO!\n" .
+            "  3. PASSO 1 - AUDITORIA IMEDIATA: Chame IMEDIATAMENTE `auditar_divergencia_saldo_conta(conta: 'Mercado Pago', saldo_real: 0.33)`. Essa ferramenta calcula a fórmula do sistema (`saldo_inicial + receitas - despesas`), apura a diferença e cruza as movimentações com o extrato bancário.\n" .
+            "  4. PASSO 2 - ANÁLISE DE TAXAS E CONCILIAÇÕES: A ferramenta identifica automaticamente transações conciliadas onde a taxa cobrada pelo banco difere da despesa de taxa registrada no sistema (como no Pedido PED-001031 onde a taxa real foi de 12,94 e o sistema só lançou 6,47, deixando 6,47 a mais no saldo!).\n" .
+            "  5. RESPOSTA FINAL: Apresente o diagnóstico matemático completo, indicando o saldo do sistema, o saldo real, a diferença exata, a transação/pedido responsável pelo erro e a explicação exata de como ajustar!\n" .
             "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
             "- REGRAS PADRÃO DE CONCILIAÇÃO BANCÁRIA (`regras_conciliacao`):\n" .
             "  1. Ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`.\n" .
@@ -299,6 +305,41 @@ class SeverinoService
                                 "valor" => ["type" => "NUMBER", "description" => "Opcional. Valor total exato ou aproximado do pedido (ex: 171.82)."],
                                 "numero_pedido" => ["type" => "STRING", "description" => "Opcional. Número do pedido (ex: 'PED-001069' ou '1069')."],
                                 "limite" => ["type" => "INTEGER", "description" => "Quantidade máxima de pedidos para retornar (padrão: 5, máximo: 15)."]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "auditar_divergencia_saldo_conta",
+                        "description" => "Audita divergências de saldo entre o saldo real de uma conta bancária (Mercado Pago, Inter, Caixinha) e o saldo calculado pelo sistema. Calcula o saldo inicial, receitas, despesas e saldo atual do sistema. Cruza as movimentações com o extrato bancário para identificar exatamente onde está a diferença (ex: erros no cálculo de taxas de cartão/PIX em conciliações, despesas faltantes, lançamentos duplicados). Use SEMPRE que o usuário relatar divergência de saldo ou perguntar onde está o erro no saldo de uma conta bancária.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "conta" => [
+                                    "type" => "STRING",
+                                    "description" => "Nome ou ID da conta bancária (ex: 'Mercado Pago', 'Inter', 'Caixinha', ou o ID 2)"
+                                ],
+                                "saldo_real" => [
+                                    "type" => "NUMBER",
+                                    "description" => "Opcional. Saldo real observado no aplicativo/site do banco (ex: 0.33)"
+                                ],
+                                "diferenca" => [
+                                    "type" => "NUMBER",
+                                    "description" => "Opcional. Diferença de valor observada (ex: 6.47)"
+                                ]
+                            ],
+                            "required" => ["conta"]
+                        ]
+                    ],
+                    [
+                        "name" => "consultar_contas_bancarias",
+                        "description" => "Consulta as contas bancárias cadastradas no sistema (tabela `contas_bancarias`), com saldo inicial, total de receitas recebidas, total de despesas pagas e saldo atual calculado no sistema. Use sempre que o usuário perguntar sobre as contas bancárias, saldos das contas ou saldo do Mercado Pago / Inter.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "termo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Nome da conta bancária (ex: 'Mercado Pago', 'Inter', 'Caixinha') para filtrar."
+                                ]
                             ]
                         ]
                     ],
@@ -1069,6 +1110,11 @@ class SeverinoService
                         $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Query executada com sucesso! Você DEVE formular e entregar a resposta final completa e formatada em Markdown diretamente ao usuário com todos os dados apurados. NUNCA fale em texto que você vai registrar ou criar ferramentas dinâmicas antes de responder. Entregue os dados solicitados pelo usuário primeiro!";
                     }
 
+                    // Incentivo para auditoria de saldo bancário: entrega o diagnóstico completo imediatamente
+                    if ($name === 'auditar_divergencia_saldo_conta' && empty($resultado['erro'])) {
+                        $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Auditoria de saldo executada com sucesso! Você DEVE formular e entregar a resposta final completa e formatada em Markdown diretamente ao usuário agora, apresentando o saldo do sistema, o saldo real, a diferença exata e o diagnóstico da transação responsável pela divergência. NUNCA pergunte 'se o usuário gostaria' de investigar mais ou peça 'sinal verde'. Entregue a conclusão e a explicação agora!";
+                    }
+
                     // Bloqueio de parada prematura no mapeamento de módulo ou consulta de código:
                     if ($name === 'mapear_modulo_sistema' || $name === 'consultar_codigo_controller') {
                         $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Os dados acima são APENAS o mapa estrutural e regras do código. Você AINDA NÃO TEM os dados do banco! Você DEVE OBRIGATORIAMENTE chamar 'executar_query_select' para buscar os registros reais no banco antes de formular a resposta para o usuário. É TERMINANTEMENTE PROIBIDO responder ao usuário ou inventar nomes/valores de clientes fictícios antes de consultar o banco!";
@@ -1683,6 +1729,207 @@ class SeverinoService
                     return [
                         "total_pedidos" => count($detalhes),
                         "pedidos" => $detalhes
+                    ];
+
+                case "consultar_contas_bancarias":
+                    $termo = trim((string)($args["termo"] ?? ""));
+                    $q = DB::table('contas_bancarias');
+                    if ($termo !== "") {
+                        $q->where('nome', 'LIKE', "%{$termo}%");
+                    }
+                    $contasDb = $q->get();
+                    $retornoContas = [];
+                    foreach ($contasDb as $c) {
+                        $saldoInicial = (float)($c->saldo_inicial ?? 0);
+                        if (str_contains(strtolower($c->nome), 'carteira')) {
+                            $subQueryMaxDate = DB::table('conta_corrente')->select('user_id', DB::raw('MAX(data_movimentacao) as max_date'))->groupBy('user_id');
+                            $subQueryMaxId = DB::table('conta_corrente as cc')->joinSub($subQueryMaxDate, 'tm', function($join) {
+                                $join->on('cc.user_id', '=', 'tm.user_id')->on('cc.data_movimentacao', '=', 'tm.max_date');
+                            })->select('cc.user_id', DB::raw('MAX(cc.id) as max_id'))->groupBy('cc.user_id');
+                            $saldoAtual = (float)DB::table('conta_corrente as cc')->joinSub($subQueryMaxId, 'mi', function($join) {
+                                $join->on('cc.id', '=', 'mi.max_id');
+                            })->sum('cc.saldo_atual');
+                            $entradas = 0.0;
+                            $saidas = 0.0;
+                        } else {
+                            $entradas = (float)DB::table('movimentacoes as m')
+                                ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                                ->where('m.conta_bancaria_id', $c->id)
+                                ->where('l.tipo', 'receita')
+                                ->sum('m.valor_pago');
+                            $saidas = (float)DB::table('movimentacoes as m')
+                                ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                                ->where('m.conta_bancaria_id', $c->id)
+                                ->where('l.tipo', 'despesa')
+                                ->sum('m.valor_pago');
+                            $saldoAtual = round($saldoInicial + $entradas - $saidas, 2);
+                        }
+                        $retornoContas[] = [
+                            "id" => $c->id,
+                            "nome" => $c->nome,
+                            "tipo" => $c->tipo,
+                            "saldo_inicial" => $saldoInicial,
+                            "total_receitas_entradas" => $entradas,
+                            "total_despesas_saidas" => $saidas,
+                            "saldo_atual_sistema" => $saldoAtual
+                        ];
+                    }
+                    return [
+                        "total_contas" => count($retornoContas),
+                        "contas" => $retornoContas
+                    ];
+
+                case "auditar_divergencia_saldo_conta":
+                    $contaNomeOuId = trim((string)($args["conta"] ?? ""));
+                    $saldoReal = isset($args["saldo_real"]) && is_numeric($args["saldo_real"]) ? (float)$args["saldo_real"] : null;
+                    $diferencaInformada = isset($args["diferenca"]) && is_numeric($args["diferenca"]) ? (float)$args["diferenca"] : null;
+
+                    if ($contaNomeOuId === "") {
+                        return ["erro" => "Nome ou ID da conta bancária obrigatório."];
+                    }
+
+                    $conta = null;
+                    if (is_numeric($contaNomeOuId)) {
+                        $conta = \App\Models\ContaBancaria::find((int)$contaNomeOuId);
+                    } else {
+                        $conta = \App\Models\ContaBancaria::where('nome', 'like', "%{$contaNomeOuId}%")->first();
+                    }
+
+                    if (!$conta) {
+                        return ["erro" => "Conta bancária '{$contaNomeOuId}' não encontrada."];
+                    }
+
+                    $contaId = $conta->id;
+                    $saldoInicial = (float)($conta->saldo_inicial ?? 0);
+
+                    $entradas = (float)DB::table('movimentacoes as m')
+                        ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                        ->where('m.conta_bancaria_id', $contaId)
+                        ->where('l.tipo', 'receita')
+                        ->sum('m.valor_pago');
+
+                    $saidas = (float)DB::table('movimentacoes as m')
+                        ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                        ->where('m.conta_bancaria_id', $contaId)
+                        ->where('l.tipo', 'despesa')
+                        ->sum('m.valor_pago');
+
+                    $saldoSistema = round($saldoInicial + $entradas - $saidas, 2);
+
+                    $diff = null;
+                    if ($saldoReal !== null) {
+                        $diff = round($saldoSistema - (float)$saldoReal, 2);
+                    } elseif ($diferencaInformada !== null) {
+                        $diff = round((float)$diferencaInformada, 2);
+                    }
+
+                    $diagnosticos = [];
+
+                    if ($diff !== null && abs($diff) > 0.001) {
+                        $absDiff = abs($diff);
+
+                        // A) Discrepâncias de taxas de transações conciliadas do extrato (ex: Mercado Pago)
+                        $transacoesExtrato = DB::table('transacoes_extrato')
+                            ->where('conta_bancaria_id', $contaId)
+                            ->where('status', 'conciliado')
+                            ->orderByDesc('data')
+                            ->limit(40)
+                            ->get();
+
+                        foreach ($transacoesExtrato as $tx) {
+                            $mov = DB::table('movimentacoes')->where('id', $tx->movimentacao_id)->first();
+                            if (!$mov) continue;
+
+                            $lanc = DB::table('lancamentos')->where('id', $mov->lancamento_id)->first();
+                            if (!$lanc) continue;
+
+                            if ($lanc->tipo === 'receita') {
+                                $valorBrutoLanc = (float)$mov->valor_pago;
+                                $valorRealExtrato = (float)$tx->valor;
+
+                                $taxaLancada = (float)DB::table('lancamentos as l')
+                                    ->join('movimentacoes as m', 'm.lancamento_id', '=', 'l.id')
+                                    ->where('m.conta_bancaria_id', $contaId)
+                                    ->where('l.tipo', 'despesa')
+                                    ->where('l.descricao', 'like', "%{$tx->fitid}%")
+                                    ->sum('m.valor_pago');
+
+                                $taxaRealBanco = round($valorBrutoLanc - $valorRealExtrato, 2);
+                                $impactoSistema = $valorBrutoLanc - $taxaLancada;
+                                $divergenciaTx = round($impactoSistema - $valorRealExtrato, 2);
+
+                                if (abs($divergenciaTx - $diff) < 0.05) {
+                                    $diagnosticos[] = [
+                                        "tipo_divergencia" => "erro_calculo_taxa_conciliacao",
+                                        "transacao_extrato_id" => $tx->id,
+                                        "fitid" => $tx->fitid,
+                                        "data" => date('d/m/Y', strtotime($tx->data)),
+                                        "descricao_extrato" => $tx->descricao,
+                                        "pedido_vinculado" => $lanc->descricao,
+                                        "valor_bruto_pedido" => $valorBrutoLanc,
+                                        "valor_liquido_banco_extrato" => $valorRealExtrato,
+                                        "taxa_real_cobrada_pelo_banco" => $taxaRealBanco,
+                                        "taxa_despesa_registrada_no_sistema" => $taxaLancada,
+                                        "diferenca_gerada_no_saldo" => $divergenciaTx,
+                                        "conclusao" => "CAUSA RAIZ ENCONTRADA: Na transação fitid {$tx->fitid} referente a '{$lanc->descricao}', o valor bruto é R$ {$valorBrutoLanc}, mas no banco entraram líquidos R$ {$valorRealExtrato} (Taxa real cobrada pelo Mercado Pago: R$ {$taxaRealBanco}). O sistema lançou uma taxa de apenas R$ {$taxaLancada}. Faltou lançar R$ {$divergenciaTx} de despesa de taxa, o que deixou o saldo do sistema com exatamente R$ {$divergenciaTx} a mais!"
+                                    ];
+                                }
+                            }
+                        }
+
+                        // B) Se não encontrou por taxa, procura movimentações com valor exato da diferença
+                        if (empty($diagnosticos)) {
+                            $movsExatas = DB::table('movimentacoes as m')
+                                ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                                ->where('m.conta_bancaria_id', $contaId)
+                                ->whereBetween('m.valor_pago', [$absDiff - 0.02, $absDiff + 0.02])
+                                ->select('m.id as mov_id', 'm.data_pagamento', 'm.valor_pago', 'l.id as lanc_id', 'l.tipo', 'l.descricao')
+                                ->get();
+
+                            foreach ($movsExatas as $me) {
+                                $diagnosticos[] = [
+                                    "tipo_divergencia" => "movimentacao_valor_exato",
+                                    "detalhes" => "Movimentação #{$me->mov_id} em " . date('d/m/Y', strtotime($me->data_pagamento)) . " tem o valor exato da diferença (R$ {$me->valor_pago}): '{$me->descricao}' (Tipo: {$me->tipo})."
+                                ];
+                            }
+                        }
+                    }
+
+                    // Últimas movimentações recentes para contextualizar
+                    $ultimasMovs = DB::table('movimentacoes as m')
+                        ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                        ->where('m.conta_bancaria_id', $contaId)
+                        ->select('m.id', 'm.data_pagamento', 'm.valor_pago', 'l.tipo', 'l.descricao')
+                        ->orderByDesc('m.data_pagamento')
+                        ->orderByDesc('m.id')
+                        ->limit(6)
+                        ->get();
+
+                    $historicoRecente = [];
+                    foreach ($ultimasMovs as $um) {
+                        $historicoRecente[] = [
+                            "data" => date('d/m/Y', strtotime($um->data_pagamento)),
+                            "valor" => (float)$um->valor_pago,
+                            "tipo" => $um->tipo,
+                            "descricao" => $um->descricao
+                        ];
+                    }
+
+                    return [
+                        "conta" => [
+                            "id" => $conta->id,
+                            "nome" => $conta->nome,
+                            "saldo_inicial" => $saldoInicial,
+                            "total_receitas_entradas" => $entradas,
+                            "total_despesas_saidas" => $saidas,
+                            "saldo_calculado_sistema" => $saldoSistema
+                        ],
+                        "saldo_real_informado" => $saldoReal,
+                        "diferenca_saldo" => $diff,
+                        "interpretacao" => $diff > 0 ? "O sistema está com R$ " . abs($diff) . " A MAIS que o saldo real informado." : "O sistema está com R$ " . abs($diff) . " A MENOS que o saldo real informado.",
+                        "diagnostico_principal" => $diagnosticos[0] ?? null,
+                        "todos_diagnosticos" => $diagnosticos,
+                        "ultimas_movimentacoes_sistema" => $historicoRecente
                     ];
 
                 case "resumo_carteira_clientes":
