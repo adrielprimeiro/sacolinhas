@@ -798,6 +798,11 @@ Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     Route::match(['get', 'post'], '/chat-evolution/api/severino-config', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'severinoConfig']);
     Route::post('/chat-evolution/api/send-live-item-test', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'sendLiveItemTest']);
     Route::post('/chat-evolution/api/send-live-closing', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'sendLiveClosing']);
+    Route::post('/chat-evolution/api/closing-queue/start', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'startClosingQueue']);
+    Route::get('/chat-evolution/api/closing-queue/status/{liveId}', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'closingQueueStatus']);
+    Route::post('/chat-evolution/api/closing-queue/pause', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'pauseClosingQueue']);
+    Route::post('/chat-evolution/api/closing-queue/resume', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'resumeClosingQueue']);
+    Route::post('/chat-evolution/api/closing-queue/cancel', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'cancelClosingQueue']);
     Route::post('/chat-evolution/api/simulate-client-reply', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'simulateClientReply']);
 })->withoutMiddleware([VerifyCsrfToken::class]);
 

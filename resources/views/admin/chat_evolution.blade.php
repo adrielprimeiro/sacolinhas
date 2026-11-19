@@ -459,7 +459,7 @@
 						<div class="message-row">
 							<div class="message-bubble ${m.direction === 'outbound' ? 'sent-message' : 'received-message'}">
 								${senderBadge}
-								${m.media_url ? `<div class="mb-2"><a href="${m.media_url}" target="_blank" class="btn btn-sm btn-outline-dark"><i class="bi bi-file-earmark"></i> Ver anexo</a></div>` : ''}
+								${m.media_url ? `<div class="mb-2"><a href="${m.media_url}" target="_blank" class="btn btn-sm bg-white text-dark border border-secondary-subtle fw-semibold shadow-sm"><i class="bi ${String(m.media_url).toLowerCase().endsWith('.pdf') ? 'bi-file-earmark-pdf-fill text-danger' : 'bi-file-earmark'} me-1"></i>${String(m.media_url).toLowerCase().endsWith('.pdf') ? 'Abrir PDF' : 'Ver anexo'}</a></div>` : ''}
 								<div class="message-content">${m.body ? escapeHtml(m.body) : ''}</div>
 								<div class="timestamp">
 									<span>${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>

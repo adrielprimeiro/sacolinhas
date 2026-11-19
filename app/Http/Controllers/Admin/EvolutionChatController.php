@@ -397,20 +397,28 @@ class EvolutionChatController extends Controller
             overridePhone: $targetPhone
         );
 
+        $balloonsInfo = !empty($res['sent_two_balloons'])
+            ? ' (2 balões: abertura humana + peça)'
+            : ' (1 balão curto: conversa já ativa)';
+
         return response()->json([
             'success' => $res['success'] ?? false,
             'message' => ($res['success'] ?? false)
-                ? 'Mensagem de Peça Ganha na Live enviada com sucesso via Severino!'
+                ? 'Mensagem de Peça Ganha na Live enviada com sucesso via Severino!' . $balloonsInfo
                 : ('Erro ao enviar: ' . ($res['error'] ?? 'Falha desconhecida')),
             'data' => $res,
         ]);
     }
 
     /**
-     * Dispara o Fechamento de Fim de Live no WhatsApp via Severino / Evolution API
+     * Dispara o Fechamento de Fim de Live (PDF + Mensagem enxuta) no WhatsApp via Severino / Evolution API
      */
     public function sendLiveClosing(Request $request)
     {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
         $request->validate([
             'live_id' => 'required|integer',
             'user_id' => 'required|integer',
@@ -430,16 +438,125 @@ class EvolutionChatController extends Controller
             useTestPhone: $useTestPhone
         );
 
+        $pdfInfoTxt = !empty($res['pdf_sent'])
+            ? 'PDF da sacolinha: Enviado ✅'
+            : ('PDF da sacolinha: Não enviado (' . ($res['pdf_error'] ?? 'aviso') . ')');
+
         return response()->json([
             'success' => $res['success'] ?? false,
             'flow' => $res['flow'] ?? null,
             'flow_label' => $res['flow_label'] ?? null,
             'target_phone' => $res['target_phone'] ?? null,
+            'pdf_sent' => $res['pdf_sent'] ?? false,
             'message' => ($res['success'] ?? false)
-                ? "Fechamento da Live enviado pelo Severino para {$res['target_phone']}!\nCliente: {$res['client_name']}\nPerfil: {$res['flow_label']}\n\nAgora você pode responder no WhatsApp (ou simular abaixo) para conversar com o Severino!"
+                ? "Fechamento da Live enviado pelo Severino para {$res['target_phone']}!\nCliente: {$res['client_name']}\nPerfil: {$res['flow_label']}\n{$pdfInfoTxt}\n\nAgora você pode responder no WhatsApp (ou simular no chat) para testar o atendimento + gancho pós-fechamento!"
                 : ('Erro ao enviar: ' . ($res['error'] ?? 'Falha desconhecida')),
             'data' => $res,
         ]);
+    }
+
+    /**
+     * Inicia a fila cadenciada de fechamento (PDF + texto enxuto, intervalo aleatório 5s a 55s)
+     */
+    public function startClosingQueue(Request $request)
+    {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
+        $request->validate([
+            'live_id' => 'required|integer',
+            'use_test_phone' => 'nullable|boolean',
+            'target_phone' => 'nullable|string',
+            'min_delay' => 'nullable|integer|min:5|max:55',
+            'max_delay' => 'nullable|integer|min:5|max:120',
+            'limit_test' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        $res = app(\App\Services\Ai\SeverinoWhatsappAgentService::class)->startClosingQueue(
+            (int) $request->input('live_id'),
+            [
+                'use_test_phone' => $request->boolean('use_test_phone', true),
+                'target_phone' => $request->input('target_phone'),
+                'min_delay' => $request->input('min_delay', 5),
+                'max_delay' => $request->input('max_delay', 55),
+                'limit_test' => $request->input('limit_test'),
+            ]
+        );
+
+        return response()->json($res, !empty($res['success']) ? 200 : 422);
+    }
+
+    /**
+     * Consulta progresso da fila cadenciada de fechamento da live
+     */
+    public function closingQueueStatus(int $liveId)
+    {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
+        return response()->json([
+            'success' => true,
+            'state' => \App\Services\Ai\SeverinoWhatsappAgentService::getClosingQueueStatus($liveId),
+        ]);
+    }
+
+    /**
+     * Pausa a fila cadenciada de fechamento
+     */
+    public function pauseClosingQueue(Request $request)
+    {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
+        $request->validate(['live_id' => 'required|integer']);
+        return response()->json(
+            \App\Services\Ai\SeverinoWhatsappAgentService::pauseClosingQueue((int) $request->input('live_id'))
+        );
+    }
+
+    /**
+     * Retoma a fila cadenciada de fechamento pausada
+     */
+    public function resumeClosingQueue(Request $request)
+    {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
+        $request->validate(['live_id' => 'required|integer']);
+        return response()->json(
+            \App\Services\Ai\SeverinoWhatsappAgentService::resumeClosingQueue((int) $request->input('live_id'))
+        );
+    }
+
+    /**
+     * Cancela a fila cadenciada de fechamento
+     */
+    public function cancelClosingQueue(Request $request)
+    {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
+        $request->validate(['live_id' => 'required|integer']);
+        return response()->json(
+            \App\Services\Ai\SeverinoWhatsappAgentService::cancelClosingQueue((int) $request->input('live_id'))
+        );
+    }
+
+    protected function ensureMatrizOnly()
+    {
+        $user = auth()->user();
+        if ($user && !empty($user->brecho_id) && (int) $user->brecho_id > 1) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Funcionalidade exclusiva da Minha Mania (Matriz).',
+            ], 403);
+        }
+        return null;
     }
 
     /**

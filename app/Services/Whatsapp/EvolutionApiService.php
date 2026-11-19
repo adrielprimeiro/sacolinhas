@@ -304,10 +304,16 @@ class EvolutionApiService
     }
 
     /**
-     * Envia arquivo ou mídia (imagem, pdf, audio, doc)
+     * Envia arquivo ou mídia (imagem, pdf, audio, doc) via URL pública ou Base64 puro
      */
-    public function sendMedia(string $to, string $mediaUrl, string $caption = '', string $mediaType = 'document', string $fileName = 'arquivo.pdf'): array
-    {
+    public function sendMedia(
+        string $to,
+        string $mediaUrlOrBase64,
+        string $caption = '',
+        string $mediaType = 'document',
+        string $fileName = 'arquivo.pdf',
+        int $delay = 1500
+    ): array {
         $target = $to;
         if (str_contains($target, '@lid')) {
             $resolved = $this->resolveLidToPhoneNumber($target);
@@ -323,17 +329,24 @@ class EvolutionApiService
 
         $number = $digits ?: $target;
 
+        // Evolution API v2 aceita URL ou base64 puro (sem prefixo data:...;base64,)
+        $mediaPayload = $mediaUrlOrBase64;
+        if (str_starts_with($mediaPayload, 'data:') && str_contains($mediaPayload, ';base64,')) {
+            $mediaPayload = substr($mediaPayload, strpos($mediaPayload, ';base64,') + 8);
+        }
+
         try {
             $payload = [
                 'number' => $number,
                 'mediatype' => $mediaType,
                 'mimetype' => $this->guessMimeType($fileName),
                 'caption' => $caption,
-                'media' => $mediaUrl,
+                'media' => $mediaPayload,
                 'fileName' => $fileName,
+                'delay' => max(0, $delay),
             ];
 
-            $resp = $this->client()->post("{$this->baseUrl}/message/sendMedia/{$this->instanceName}", $payload);
+            $resp = $this->client()->timeout(30)->post("{$this->baseUrl}/message/sendMedia/{$this->instanceName}", $payload);
             $json = $resp->json();
 
             $errorMessage = null;

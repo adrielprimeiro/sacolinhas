@@ -5,6 +5,9 @@
 @section('brand_icon', 'fas fa-broadcast-tower')
 
 @section('content')
+@php
+    $isMatriz = empty(auth()->user()->brecho_id) || (int) auth()->user()->brecho_id === 1;
+@endphp
 <div class="space-y-6">
     {{-- Cabeçalho da Página --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex justify-between items-center flex-wrap gap-4">
@@ -67,6 +70,7 @@
 
         {{-- Coluna Direita: Sacolas da Live Selecionada --}}
         <div class="lg:col-span-7 space-y-6">
+            @if($isMatriz)
             {{-- Painel de Controle / Teste do Severino no WhatsApp (Evolution API) --}}
             <div class="bg-indigo-50 rounded-xl shadow-sm border border-indigo-200 p-4 flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5">
@@ -78,7 +82,7 @@
                             Fluxo WhatsApp Severino (Chip Atual / Evolution)
                             <span class="px-2 py-0.5 rounded-full text-[10px] bg-amber-200 text-amber-900 font-extrabold">Twilio Mantida em Paralelo</span>
                         </h4>
-                        <p class="text-[11px] text-indigo-800">Teste o envio de peça ao clicar na live e o fechamento conversacional com o Severino.</p>
+                        <p class="text-[11px] text-indigo-800">2 balões na 1ª msg da live, PDF + fechamento cadenciado (5–55s) e ganchos pós-fechamento.</p>
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
@@ -101,6 +105,63 @@
                     </a>
                 </div>
             </div>
+
+            {{-- Painel da Fila Cadenciada de Fechamento da Live (5s–55s + PDF + Anti-Ban) --}}
+            <div id="closing-queue-panel" class="hidden bg-white rounded-xl shadow-sm border-2 border-emerald-200 p-4 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h4 class="text-xs font-black text-gray-900 uppercase tracking-wide flex items-center gap-2">
+                            <i class="fas fa-paper-plane text-emerald-600"></i>
+                            Fechamento Cadenciado da Live (PDF + Severino)
+                            <span id="cq-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gray-100 text-gray-700">Pronto</span>
+                        </h4>
+                        <p class="text-[11px] text-gray-600 mt-0.5">
+                            Envia o PDF padrão + resumo financeiro com intervalo humano aleatório de <strong>5s a 55s</strong>, priorizando conversas quentes.
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2" id="cq-controls">
+                        <select id="cq-test-limit" class="text-xs font-bold text-gray-900 bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5" title="Limite de clientes quando em Modo Teste">
+                            <option value="3">Teste: 3 clientes</option>
+                            <option value="5">Teste: 5 clientes</option>
+                            <option value="">Todas as clientes</option>
+                        </select>
+                        <button type="button" id="btn-cq-start" onclick="iniciarFilaFechamento()"
+                                class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition">
+                            <i class="fas fa-rocket"></i> Iniciar Fechamento Cadenciado
+                        </button>
+                        <button type="button" id="btn-cq-pause" onclick="pausarFilaFechamento()" class="hidden bg-amber-400 hover:bg-amber-500 text-gray-900 font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-sm transition">
+                            <i class="fas fa-pause"></i> Pausar
+                        </button>
+                        <button type="button" id="btn-cq-resume" onclick="retomarFilaFechamento()" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-sm transition">
+                            <i class="fas fa-play"></i> Retomar
+                        </button>
+                        <button type="button" id="btn-cq-cancel" onclick="cancelarFilaFechamento()" class="hidden bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-sm transition">
+                            <i class="fas fa-stop"></i> Cancelar
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Progresso ao vivo --}}
+                <div id="cq-progress-wrap" class="hidden space-y-2 pt-2 border-t border-gray-100">
+                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div class="flex flex-wrap items-center gap-2 font-bold">
+                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900">Enviados: <span id="cq-sent">0</span>/<span id="cq-total">0</span></span>
+                            <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-900">PDFs: <span id="cq-pdfs">0</span></span>
+                            <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-800">Na Fila: <span id="cq-pending">0</span></span>
+                            <span class="px-2 py-0.5 rounded bg-red-100 text-red-900">Falhas: <span id="cq-failed">0</span></span>
+                        </div>
+                        <div id="cq-next-info" class="text-[11px] font-bold text-indigo-800"></div>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                        <div id="cq-progress-bar" class="bg-emerald-600 h-2.5 transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <details class="text-xs">
+                        <summary class="cursor-pointer font-bold text-gray-700 hover:text-indigo-700 select-none">Ver fila de clientes e ordem de prioridade</summary>
+                        <div id="cq-items-list" class="mt-2 max-h-44 overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg bg-gray-50"></div>
+                    </details>
+                </div>
+            </div>
+            @endif
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
                 <div class="flex justify-between items-center border-b border-gray-100 pb-3 flex-wrap gap-2">
@@ -352,6 +413,9 @@
         renderLivesTable(allLives);
     }
 
+    const IS_MATRIZ = @json($isMatriz);
+    let closingQueuePollTimer = null;
+
     function selectLive(id) {
         selectedLiveId = id;
         document.querySelectorAll('.live-row').forEach(r => {
@@ -361,6 +425,204 @@
         if (row) row.classList.add('bg-blue-50', 'border-l-4', 'border-blue-500', 'font-bold');
         document.getElementById('selected-live-info').textContent = `(ID: ${id})`;
         carregarSacolas(id);
+
+        if (IS_MATRIZ) {
+            const panel = document.getElementById('closing-queue-panel');
+            if (panel) panel.classList.remove('hidden');
+            carregarStatusFilaFechamento(id);
+        }
+    }
+
+    async function carregarStatusFilaFechamento(liveId) {
+        if (!IS_MATRIZ || !liveId) return;
+        if (closingQueuePollTimer) {
+            clearTimeout(closingQueuePollTimer);
+            closingQueuePollTimer = null;
+        }
+        try {
+            const res = await fetch(`/admin/chat-evolution/api/closing-queue/status/${liveId}`);
+            const data = await res.json();
+            if (data.success && data.state) {
+                renderizarFilaFechamento(data.state);
+                if (data.state.status === 'running' && selectedLiveId == liveId) {
+                    closingQueuePollTimer = setTimeout(() => carregarStatusFilaFechamento(liveId), 4000);
+                }
+            }
+        } catch (e) {
+            console.warn('Erro ao consultar fila de fechamento:', e);
+        }
+    }
+
+    function renderizarFilaFechamento(st) {
+        const badge = document.getElementById('cq-status-badge');
+        const btnStart = document.getElementById('btn-cq-start');
+        const btnPause = document.getElementById('btn-cq-pause');
+        const btnResume = document.getElementById('btn-cq-resume');
+        const btnCancel = document.getElementById('btn-cq-cancel');
+        const testLimitSel = document.getElementById('cq-test-limit');
+        const progWrap = document.getElementById('cq-progress-wrap');
+        if (!badge) return;
+
+        const statusMap = {
+            idle: { text: 'Pronto', cls: 'bg-gray-100 text-gray-800' },
+            running: { text: '🚀 Enviando (5–55s)', cls: 'bg-emerald-100 text-emerald-900' },
+            paused: { text: '⏸️ Pausado', cls: 'bg-amber-200 text-amber-900' },
+            completed: { text: '✅ Concluído', cls: 'bg-blue-100 text-blue-900' },
+            cancelled: { text: '🛑 Cancelado', cls: 'bg-red-100 text-red-900' },
+        };
+        const sm = statusMap[st.status] || statusMap.idle;
+        badge.textContent = sm.text;
+        badge.className = `px-2 py-0.5 rounded-full text-[10px] font-extrabold ${sm.cls}`;
+
+        const isRunning = st.status === 'running';
+        const isPaused = st.status === 'paused';
+        const hasProgress = st.status !== 'idle' && (st.total || 0) > 0;
+
+        btnStart.classList.toggle('hidden', isRunning || isPaused);
+        if (testLimitSel) testLimitSel.classList.toggle('hidden', isRunning || isPaused);
+        btnPause.classList.toggle('hidden', !isRunning);
+        btnResume.classList.toggle('hidden', !isPaused);
+        btnCancel.classList.toggle('hidden', !isRunning && !isPaused);
+        progWrap.classList.toggle('hidden', !hasProgress);
+
+        if (!hasProgress) return;
+
+        document.getElementById('cq-sent').textContent = st.sent ?? 0;
+        document.getElementById('cq-total').textContent = st.total ?? 0;
+        document.getElementById('cq-pdfs').textContent = st.pdfs_sent ?? 0;
+        document.getElementById('cq-pending').textContent = st.pending ?? 0;
+        document.getElementById('cq-failed').textContent = st.failed ?? 0;
+        document.getElementById('cq-progress-bar').style.width = `${st.progress_percent ?? 0}%`;
+
+        const nextInfo = document.getElementById('cq-next-info');
+        if (isRunning) {
+            if (st.current_client) {
+                nextInfo.textContent = `Enviando PDF + Fechamento para ${st.current_client}...`;
+            } else if (st.next_in_seconds !== null && st.next_in_seconds !== undefined) {
+                nextInfo.textContent = `Próximo envio em ~${st.next_in_seconds}s (Modo: ${st.mode === 'test' ? '🧪 Teste ' + st.test_phone : '🟢 Real'})`;
+            } else {
+                nextInfo.textContent = 'Processando próximo item da fila...';
+            }
+        } else if (isPaused) {
+            nextInfo.textContent = 'Fila pausada pelo operador. Clique em Retomar para continuar.';
+        } else if (st.status === 'completed') {
+            nextInfo.textContent = 'Todos os envios cadenciados desta live foram finalizados!';
+        } else {
+            nextInfo.textContent = '';
+        }
+
+        const listEl = document.getElementById('cq-items-list');
+        if (listEl && Array.isArray(st.items)) {
+            listEl.innerHTML = st.items.map(it => {
+                const stBadge = it.status === 'sent'
+                    ? `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 font-bold">✅ Enviado${it.pdf_sent ? ' + PDF' : ''} (${it.sent_at || ''})</span>`
+                    : (it.status === 'failed'
+                        ? `<span class="px-1.5 py-0.5 rounded bg-red-100 text-red-900 font-bold">❌ Falha: ${it.error || ''}</span>`
+                        : (it.status === 'skipped'
+                            ? `<span class="px-1.5 py-0.5 rounded bg-gray-200 text-gray-800 font-bold">⏭️ ${it.error || 'Pulado'}</span>`
+                            : `<span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold">⏳ Na fila</span>`));
+                return `
+                    <div class="px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] text-gray-900">
+                        <div>
+                            <strong>${it.name}</strong>
+                            <span class="ml-1.5 text-[10px] text-gray-600">${it.priority_label || ''}</span>
+                        </div>
+                        <div>${stBadge}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    async function iniciarFilaFechamento() {
+        if (!selectedLiveId) return;
+        const phoneInput = document.getElementById('severino-test-phone');
+        const modeSelect = document.getElementById('severino-live-mode');
+        const limitSel = document.getElementById('cq-test-limit');
+        const isTest = !modeSelect || modeSelect.value !== 'live';
+        const targetPhone = isTest ? (phoneInput?.value || '5548984136870') : '';
+        const limitVal = (isTest && limitSel && limitSel.value) ? parseInt(limitSel.value, 10) : null;
+
+        const msg = isTest
+            ? `Iniciar FECHAMENTO CADENCIADO (PDF + Severino, intervalo 5s a 55s) em MODO TESTE?\n\nDestino: ${targetPhone}\nQuantidade: ${limitVal ? limitVal + ' primeiras clientes (por prioridade)' : 'Todas as clientes da live'}`
+            : `ATENÇÃO: Iniciar FECHAMENTO CADENCIADO (PDF + Severino, intervalo 5s a 55s) para o WhatsApp REAL de todas as clientes da Live #${selectedLiveId}?\n\nVocê pode pausar a fila a qualquer momento.`;
+
+        if (!confirm(msg)) return;
+
+        try {
+            const res = await fetch('/admin/chat-evolution/api/closing-queue/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    live_id: selectedLiveId,
+                    use_test_phone: isTest,
+                    target_phone: isTest ? targetPhone : null,
+                    min_delay: 5,
+                    max_delay: 55,
+                    limit_test: limitVal
+                })
+            });
+            const data = await res.json();
+            if (!data.success) {
+                alert(data.error || 'Não foi possível iniciar a fila de fechamento.');
+                return;
+            }
+            if (data.state) {
+                renderizarFilaFechamento(data.state);
+                closingQueuePollTimer = setTimeout(() => carregarStatusFilaFechamento(selectedLiveId), 3000);
+            }
+        } catch (e) {
+            alert('Erro ao iniciar fila cadenciada de fechamento.');
+        }
+    }
+
+    async function pausarFilaFechamento() {
+        if (!selectedLiveId) return;
+        const res = await fetch('/admin/chat-evolution/api/closing-queue/pause', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ live_id: selectedLiveId })
+        });
+        const data = await res.json();
+        if (data.state) renderizarFilaFechamento(data.state);
+    }
+
+    async function retomarFilaFechamento() {
+        if (!selectedLiveId) return;
+        const res = await fetch('/admin/chat-evolution/api/closing-queue/resume', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ live_id: selectedLiveId })
+        });
+        const data = await res.json();
+        if (data.state) {
+            renderizarFilaFechamento(data.state);
+            closingQueuePollTimer = setTimeout(() => carregarStatusFilaFechamento(selectedLiveId), 3000);
+        }
+    }
+
+    async function cancelarFilaFechamento() {
+        if (!selectedLiveId) return;
+        if (!confirm('Deseja cancelar os envios restantes da fila de fechamento desta live?')) return;
+        const res = await fetch('/admin/chat-evolution/api/closing-queue/cancel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ live_id: selectedLiveId })
+        });
+        const data = await res.json();
+        if (data.state) renderizarFilaFechamento(data.state);
     }
 
     async function carregarSacolas(liveId) {
@@ -422,16 +684,18 @@
                                 title="Testar Msg Inicial via Twilio (Portal)">
                             <i class="fab fa-whatsapp text-xs"></i> Msg Inicial (Twilio)
                         </button>
+                        ${IS_MATRIZ ? `
                         <button onclick="testarPecaLiveSeverino(${currentLiveId}, ${bag.client.id}, this)" 
                                 class="bg-purple-600 hover:bg-purple-700 text-white font-extrabold px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wide flex items-center gap-1 transition shadow-sm"
-                                title="Simular clique na cliente durante a live (Severino avisa a peça ganha no WhatsApp)">
+                                title="Simular clique na cliente durante a live (Severino avisa a peça ganha em 2 balões na 1ª msg ou 1 balão curto nas demais)">
                             <i class="fas fa-gift text-xs"></i> Peça Live (Severino)
                         </button>
                         <button onclick="enviarFechamentoSeverino(${currentLiveId}, ${bag.client.id}, this)" 
                                 class="bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold px-2.5 py-1.5 rounded-lg text-[9px] uppercase tracking-wide flex items-center gap-1 transition shadow-sm"
-                                title="Enviar Fechamento Completo no WhatsApp com o Severino (Evolution API)">
-                            <i class="fas fa-robot text-xs"></i> Fechamento Zap (Severino)
+                                title="Enviar PDF + Fechamento Completo no WhatsApp com o Severino (Evolution API)">
+                            <i class="fas fa-file-pdf text-xs"></i> Fechamento + PDF (Severino)
                         </button>
+                        ` : ''}
                         <div class="text-right ml-1">
                             <span class="px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full text-[10px] font-bold uppercase tracking-wide">Itens: ${bag.total_items}</span>
                             <div class="font-black text-green-600 text-sm mt-0.5">${bag.formatted_total}</div>

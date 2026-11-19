@@ -2,7 +2,10 @@
 
 namespace App\Services\Ai;
 
+use App\Http\Controllers\LiveController;
 use App\Http\Controllers\PortalClienteController;
+use App\Jobs\ProcessSeverinoLiveClosingQueueJob;
+use App\Models\ClientWish;
 use App\Models\EvolutionContactMapping;
 use App\Models\EvolutionMessage;
 use App\Models\Item;
@@ -21,6 +24,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class SeverinoWhatsappAgentService
 {
@@ -157,7 +162,77 @@ class SeverinoWhatsappAgentService
     }
 
     /**
+     * Sensores de Contexto da Cliente e da Conversa no WhatsApp:
+     * - is_first_contact_ever: 1º contato na vida com a Minha Mania
+     * - is_first_purchase: nunca teve pedido aprovado
+     * - is_starting_conversation: sem mensagens recentes (~10h) nesta conversa
+     * - saudacao_horario: 'bom dia' | 'boa tarde' | 'boa noite' (horário de Brasília)
+     */
+    public function detectConversationState(User $user, string $cleanPhone, int $liveId, bool $isTest = false): array
+    {
+        $hora = Carbon::now('America/Sao_Paulo')->hour;
+        if ($hora >= 5 && $hora < 12) {
+            $saudacao = 'bom dia';
+        } elseif ($hora >= 12 && $hora < 18) {
+            $saudacao = 'boa tarde';
+        } else {
+            $saudacao = 'boa noite';
+        }
+
+        $isFirstPurchase = !DB::table('pedidos')
+            ->where('user_id', $user->id)
+            ->where('status_pagamento', 'aprovado')
+            ->where('status_pedido', '!=', 'cancelado')
+            ->exists();
+
+        $phoneSuffix = strlen($cleanPhone) >= 8 ? substr($cleanPhone, -8) : null;
+
+        // Verifica se já houve QUALQUER conversa anterior na vida com esta cliente
+        $hasEvoHistory = EvolutionMessage::where(function ($q) use ($user, $phoneSuffix, $isTest) {
+                $q->where('user_id', $user->id);
+                if (!$isTest && $phoneSuffix) {
+                    $q->orWhere('remote_jid', 'like', "%{$phoneSuffix}%");
+                }
+            })
+            ->where('status', '!=', 'failed')
+            ->exists();
+
+        $hasTwilioHistory = false;
+        if (!$hasEvoHistory && DB::getSchemaBuilder()->hasTable('whatsapp_messages')) {
+            $hasTwilioHistory = DB::table('whatsapp_messages')
+                ->where('user_id', $user->id)
+                ->exists();
+        }
+
+        $isFirstContactEver = $isFirstPurchase && !$hasEvoHistory && !$hasTwilioHistory;
+
+        // Verifica se estamos "iniciando uma conversa" (nenhuma mensagem nas últimas 10h para esta cliente)
+        $hasRecentMessage = EvolutionMessage::where(function ($q) use ($user, $phoneSuffix, $isTest) {
+                $q->where('user_id', $user->id);
+                if (!$isTest && $phoneSuffix) {
+                    $q->orWhere('remote_jid', 'like', "%{$phoneSuffix}%");
+                }
+            })
+            ->where('status', '!=', 'failed')
+            ->where('created_at', '>=', now()->subHours(10))
+            ->exists();
+
+        $isStartingConversation = !$hasRecentMessage;
+
+        return [
+            'is_first_contact_ever' => $isFirstContactEver,
+            'is_first_purchase' => $isFirstPurchase,
+            'is_starting_conversation' => $isStartingConversation,
+            'saudacao_horario' => $saudacao,
+            'saudacao_cap' => ucfirst($saudacao),
+        ];
+    }
+
+    /**
      * 1. Envia mensagem humanizada em tempo real quando a cliente ganha uma peça na live
+     *    - Se estamos iniciando conversa (1ª msg da live/dia): 2 balões curtos (abertura humana + peça)
+     *    - Se for 1º contato na vida / 1ª compra: abertura dá boas-vindas e segurança de que é a Minha Mania
+     *    - Se conversa já está ativa (2ª+ peça): apenas 1 balão curto (<= 5 palavras + peça em destaque)
      */
     public function sendLiveItemWonNotification(
         int $userId,
@@ -203,21 +278,14 @@ class SeverinoWhatsappAgentService
                 ->value('codigo_live');
         }
 
-        // Busca todos os itens desta cliente nesta live para saber se é a 1ª peça ou 2ª+ peça
-        $itensLive = DB::table('sacolinhas')
+        // Quantidade de peças desta cliente nesta live
+        $qtdItensLive = max(1, (int) DB::table('sacolinhas')
             ->where('user_id', $userId)
             ->where('live_id', $liveId)
             ->where('status', '!=', 'pedido')
-            ->get();
-
-        $qtdItensLive = max(1, (int) $itensLive->sum(fn($i) => $i->quantity ?? 1));
-        $subtotalLive = (float) $itensLive->sum(fn($i) => ($i->price ?? 0) * ($i->quantity ?? 1));
+            ->sum('quantity'));
 
         $precoPeca = $priceOverride !== null ? $priceOverride : (float) ($item->preco ?? 0);
-        if ($subtotalLive <= 0) {
-            $subtotalLive = $precoPeca;
-        }
-
         $primeiroNome = explode(' ', trim($user->apelido ?: $user->name))[0] ?: 'Lindeza';
         $codDisplay = $codigoLive ? "Cód {$codigoLive}" : ($item->codigo ? "Cód {$item->codigo}" : "Peça");
         $detalhes = array_filter([
@@ -228,29 +296,56 @@ class SeverinoWhatsappAgentService
         $detalhesStr = !empty($detalhes) ? ' (' . implode(' • ', $detalhes) . ')' : '';
         $nomePeca = trim($item->nome_do_produto ?: ($item->descricao ?: 'Peça da Live'));
         $precoFmt = 'R$ ' . number_format($precoPeca, 2, ',', '.');
-        $subtotalFmt = 'R$ ' . number_format($subtotalLive, 2, ',', '.');
 
-        // Verifica se é a 1ª compra da cliente na vida
-        $isFirstPurchase = !DB::table('pedidos')
-            ->where('user_id', $userId)
-            ->where('status_pagamento', 'aprovado')
-            ->where('status_pedido', '!=', 'cancelado')
-            ->exists();
+        // Sensores de contexto: 1º contato na vida / iniciando conversa / conversa ativa
+        $state = $this->detectConversationState($user, $cleanPhone, $liveId, $isTest);
+        $saudacao = $state['saudacao_horario'];
+        $saudacaoCap = $state['saudacao_cap'];
 
-        if ($qtdItensLive <= 1) {
-            if ($isFirstPurchase) {
-                $frases = [
-                    "Oi! Aqui é da Minha Mania Brechó! 💖\nPeça garantida na live:",
-                    "Aqui é da equipe Minha Mania Brechó! 🎉\nPeça garantida na live:",
+        if ($isTest) {
+            self::setTestContext($cleanPhone, $userId, $liveId);
+        }
+
+        $greetingResult = null;
+        $sentTwoBalloons = false;
+
+        // Se estamos INICIANDO UMA CONVERSA (ou 1º contato na vida): envia Balão 1 (saudação/segurança) antes da peça
+        if ($state['is_starting_conversation']) {
+            if ($state['is_first_contact_ever'] || $state['is_first_purchase']) {
+                $aberturas = [
+                    "Oii, *{$primeiroNome}*! 💖 Aqui é a equipe da *Minha Mania Brechó*. Que alegria ter você na sua primeira live com a gente! Vou te mandando por aqui cada peça que você garantir, tá?",
+                    "Oii *{$primeiroNome}*, {$saudacao}! 💖 Aqui é a equipe da *Minha Mania Brechó*! Seja super bem-vinda — vou te mandando aqui cada peça que você garantir na live ✨",
                 ];
+                $greetingType = 'live_first_contact_greeting';
             } else {
-                $frases = [
-                    "Peça garantida na live! 🎉",
-                    "Anotado pra você! ✨",
-                    "Peça reservada com sucesso! 💖",
-                    "Arrasou no garimpo! 🎉",
+                $aberturas = [
+                    "Oii *{$primeiroNome}*, {$saudacao}! 💖 Que bom te ver na live!",
+                    "Oii *{$primeiroNome}*! ✨ {$saudacaoCap}, que alegria ter você na live de hoje! 💖",
+                    "Eii *{$primeiroNome}*, {$saudacao}! 💖 Que bom ter você com a gente na live!",
                 ];
+                $greetingType = 'live_returning_greeting';
             }
+
+            $greetingText = $aberturas[array_rand($aberturas)];
+            $greetingResult = $this->sendAndRecordSeverinoMessage($cleanPhone, $user, $greetingText, [
+                'event_type' => $greetingType,
+                'live_id' => $liveId,
+                'item_id' => $itemId,
+                'is_test' => $isTest,
+                'conversation_state' => $state,
+            ], keepExistingMode: false, delay: 1600);
+
+            $sentTwoBalloons = true;
+        }
+
+        // Balão da peça (sempre frase curta <= 5 palavras + peça em destaque, sem somatórios)
+        if ($state['is_starting_conversation'] || $qtdItensLive <= 1) {
+            $frases = [
+                "Peça garantida na live! 🎉",
+                "Anotado pra você! ✨",
+                "Peça reservada com sucesso! 💖",
+                "Arrasou no garimpo! 🎉",
+            ];
         } else {
             $frases = [
                 "Mais uma peça garantida! 🎉",
@@ -262,16 +357,21 @@ class SeverinoWhatsappAgentService
 
         $frase = $frases[array_rand($frases)];
         $text = "{$frase}\n\n*[{$codDisplay}] {$nomePeca}{$detalhesStr}* — *{$precoFmt}*";
-        if ($isTest) {
-            self::setTestContext($cleanPhone, $userId, $liveId);
-        }
 
-        return $this->sendAndRecordSeverinoMessage($cleanPhone, $user, $text, [
+        $itemRes = $this->sendAndRecordSeverinoMessage($cleanPhone, $user, $text, [
             'event_type' => 'live_item_won',
             'live_id' => $liveId,
             'item_id' => $itemId,
             'is_test' => $isTest,
-        ]);
+            'sent_two_balloons' => $sentTwoBalloons,
+            'conversation_state' => $state,
+        ], keepExistingMode: $sentTwoBalloons, delay: $sentTwoBalloons ? 2200 : 1500);
+
+        $itemRes['sent_two_balloons'] = $sentTwoBalloons;
+        $itemRes['conversation_state'] = $state;
+        $itemRes['greeting_result'] = $greetingResult;
+
+        return $itemRes;
     }
 
     /**
@@ -442,20 +542,6 @@ class SeverinoWhatsappAgentService
             default => "2️⃣ *Fechar toda a Sacolinha e Enviar* (já cotamos o frete)",
         };
 
-        $iconeTitulo = match ($flow) {
-            'clube' => '👑',
-            'pendencies' => '⚠️',
-            default => '✨',
-        };
-
-        $text = "*Fechamento da live de hoje:* {$iconeTitulo}\n\n"
-            . "{$resumoFinanceiroTxt}\n\n"
-            . "Como você quer fazer agora?\n"
-            . "{$opcao1}\n"
-            . "{$opcao2}\n"
-            . "3️⃣ *Cancelar algum item ou cancelar tudo*\n\n"
-            . "Me diz aqui sua opção que eu já resolvo pra você na hora! 😊";
-
         $isTest = ($overridePhone !== null) || $useTestPhone || (($config['mode'] ?? 'test') === 'test');
         $targetPhone = $overridePhone ?: ($isTest ? ($config['test_phone'] ?: '5548984136870') : ($user->whatsapp ?: ($user->phone ?: $user->telefone_principal)));
         $cleanPhone = preg_replace('/\D+/', '', (string) $targetPhone);
@@ -464,25 +550,121 @@ class SeverinoWhatsappAgentService
             return ['success' => false, 'error' => 'Cliente sem telefone WhatsApp cadastrado.'];
         }
 
-        if ($isTest) {
-            self::setTestContext($cleanPhone, $userId, $liveId);
-        } else {
-            // Mesmo no modo cliente real, salva o contexto da última live fechada para este telefone
-            self::setTestContext($cleanPhone, $userId, $liveId);
+        // Sensor de conversa: só coloca saudação curta se ainda NÃO conversamos hoje com esta cliente
+        $state = $this->detectConversationState($user, $cleanPhone, $liveId, $isTest);
+        $saudacao = $state['saudacao_horario'];
+
+        $iconeTitulo = match ($flow) {
+            'clube' => '👑',
+            'pendencies' => '⚠️',
+            default => '✨',
+        };
+
+        $cabecalho = "*Fechamento da live de hoje:* {$iconeTitulo}";
+        if ($state['is_starting_conversation']) {
+            if ($state['is_first_contact_ever'] || $state['is_first_purchase']) {
+                $cabecalho = "Oii *{$primeiroNome}*, {$saudacao}! 💖 Aqui é a equipe da *Minha Mania Brechó*.\n\n*Fechamento da live de hoje:* {$iconeTitulo}";
+            } else {
+                $cabecalho = "Oii *{$primeiroNome}*, {$saudacao}! 💖\n\n*Fechamento da live de hoje:* {$iconeTitulo}";
+            }
         }
 
+        $text = "{$cabecalho}\n\n"
+            . "{$resumoFinanceiroTxt}\n\n"
+            . "Como você quer fazer agora?\n"
+            . "{$opcao1}\n"
+            . "{$opcao2}\n"
+            . "3️⃣ *Cancelar algum item ou cancelar tudo*\n\n"
+            . "Me diz aqui sua opção que eu já resolvo pra você na hora! 😊";
+
+        // Salva o contexto da última live fechada para este telefone
+        self::setTestContext($cleanPhone, $userId, $liveId);
+
+        // 1) Gera e envia o mesmo PDF padrão da sacolinha da live antes do texto de fechamento
+        $pdfSent = false;
+        $pdfUrl = null;
+        $pdfError = null;
+        try {
+            $pdfInfo = app(LiveController::class)->gerarPdfSacolinhaLiveSalvar($userId, $liveId);
+            $relativePath = ltrim((string) ($pdfInfo['path'] ?? ''), '/');
+            $publicUrl = rtrim((string) config('app.url', 'https://minhamania.net'), '/') . '/storage/' . $relativePath;
+            $pdfUrl = $publicUrl;
+
+            // Atualiza tabela live_pdfs mantendo compatibilidade com o fluxo atual
+            DB::table('live_pdfs')->updateOrInsert(
+                ['live_id' => $liveId, 'user_id' => $userId],
+                [
+                    'pdf_path' => $relativePath,
+                    'pdf_url' => $publicUrl,
+                    'status' => 'sent',
+                    'sent_at' => now(),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+
+            $mediaPayload = $publicUrl;
+            if ($relativePath !== '' && Storage::disk('public')->exists($relativePath)) {
+                $binary = Storage::disk('public')->get($relativePath);
+                if ($binary !== null && $binary !== '') {
+                    $mediaPayload = base64_encode($binary);
+                }
+            }
+
+            $fileSlug = Str::slug($primeiroNome ?: 'cliente', '_');
+            $pdfFileName = "Sacolinha_Live_{$liveId}_{$fileSlug}.pdf";
+
+            $pdfRes = $this->sendAndRecordSeverinoMedia(
+                $cleanPhone,
+                $user,
+                $mediaPayload,
+                $publicUrl,
+                "📄 Resumo das suas peças da Live #{$liveId}",
+                $pdfFileName,
+                [
+                    'event_type' => 'live_closing_pdf',
+                    'live_id' => $liveId,
+                    'flow' => $flow,
+                    'is_test' => $isTest,
+                ],
+                keepExistingMode: false,
+                delay: 1400
+            );
+            $pdfSent = !empty($pdfRes['success']);
+            if (!$pdfSent) {
+                $pdfError = $pdfRes['error'] ?? 'Falha ao enviar PDF';
+                Log::warning('Falha ao enviar PDF de fechamento via Evolution', [
+                    'live_id' => $liveId,
+                    'user_id' => $userId,
+                    'error' => $pdfError,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            $pdfError = $e->getMessage();
+            Log::warning('Erro ao gerar/enviar PDF no fechamento Severino: ' . $e->getMessage(), [
+                'live_id' => $liveId,
+                'user_id' => $userId,
+            ]);
+        }
+
+        // 2) Envia a mensagem de fechamento financeiro + opções
         $res = $this->sendAndRecordSeverinoMessage($cleanPhone, $user, $text, [
             'event_type' => 'live_closing',
             'live_id' => $liveId,
             'flow' => $flow,
             'flow_label' => $resolved['label'],
             'is_test' => $isTest,
-        ]);
+            'pdf_sent' => $pdfSent,
+            'pdf_url' => $pdfUrl,
+        ], keepExistingMode: $pdfSent, delay: $pdfSent ? 2200 : 1800);
 
         $res['flow'] = $flow;
         $res['flow_label'] = $resolved['label'];
         $res['target_phone'] = $cleanPhone;
         $res['client_name'] = $user->name;
+        $res['pdf_sent'] = $pdfSent;
+        $res['pdf_url'] = $pdfUrl;
+        $res['pdf_error'] = $pdfError;
 
         return $res;
     }
@@ -577,16 +759,198 @@ class SeverinoWhatsappAgentService
             $this->sendAndRecordSeverinoMessage($remoteJid, $user, $pixCodeToSendSeparately, [
                 'event_type' => 'severino_pix_code',
                 'live_id' => $liveId,
-            ], keepExistingMode: true, delay: 800);
+            ], keepExistingMode: true, delay: 900);
+        }
+
+        // Pós-fechamento: se acabou de gerar pagamento ou quitar por créditos, envia 1 gancho inteligente
+        // (em balão separado para manter o canal aberto, fazer upsell ou coletar preferência/curadoria)
+        $postClosingHookSent = null;
+        $paymentAction = collect($agentResult['actions_taken'] ?? [])->first(function ($a) {
+            return ($a['tool'] ?? '') === 'gerar_pagamento_pix_ou_cartao' && !empty($a['result']['success']);
+        });
+
+        if ($paymentAction) {
+            $hookCacheKey = "severino_hook_sent_{$liveId}_{$user->id}";
+            if (!Cache::has($hookCacheKey)) {
+                $modalidadeEscolhida = (string) ($paymentAction['args']['modalidade'] ?? 'guardar_sacolinha');
+                $hook = $this->resolvePostClosingHook($user, $liveId, $modalidadeEscolhida);
+                if ($hook && !empty($hook['message'])) {
+                    Cache::put($hookCacheKey, $hook['type'], now()->addHours(48));
+                    $this->sendAndRecordSeverinoMessage($remoteJid, $user, $hook['message'], [
+                        'event_type' => 'post_closing_hook',
+                        'hook_type' => $hook['type'],
+                        'hook_data' => $hook['data'] ?? [],
+                        'live_id' => $liveId,
+                    ], keepExistingMode: true, delay: 2600);
+                    $postClosingHookSent = $hook;
+                }
+            }
         }
 
         return [
             'handled' => true,
             'reply' => $replyText,
             'pix_copia_e_cola' => $pixCodeToSendSeparately,
+            'post_closing_hook' => $postClosingHookSent,
             'actions_taken' => $agentResult['actions_taken'] ?? [],
             'send_result' => $sendRes,
         ];
+    }
+
+    /**
+     * Motor de Ganchos Pós-Fechamento (Ordem de Prioridade):
+     * 1º Peça que escapou na fila da live (live_code_requests)
+     * 2º Sobras da live no tamanho dela (se estiver fechando envio imediato)
+     * 3º Curadoria / Extrair desejos de peças/marcas (client_wishes)
+     * 4º Upsell Clube Mania (recorrente com 3+ compras e não assinante)
+     * 5º Fallback: CEP faltando no cadastro
+     */
+    public function resolvePostClosingHook(User $user, int $liveId, string $modalidade = 'guardar_sacolinha'): ?array
+    {
+        $primeiroNome = explode(' ', trim($user->apelido ?: $user->name))[0] ?: 'Lindeza';
+
+        // Itens que a cliente efetivamente ganhou nesta live
+        $wonRows = DB::table('sacolinhas')
+            ->join('items', 'sacolinhas.item_id', '=', 'items.id')
+            ->where('sacolinhas.user_id', $user->id)
+            ->where('sacolinhas.live_id', $liveId)
+            ->select('sacolinhas.item_id', 'items.tamanho', 'items.codigo')
+            ->get();
+
+        $wonItemIds = $wonRows->pluck('item_id')->filter()->map(fn($v) => (int) $v)->unique()->values()->toArray();
+        $wonSizes = $wonRows->pluck('tamanho')
+            ->map(fn($s) => trim((string) $s))
+            ->filter(fn($s) => $s !== '')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        // 1º PRIORIDADE: Peça que escapou na fila da live (live_code_requests)
+        if (DB::getSchemaBuilder()->hasTable('live_code_requests')) {
+            $missedReq = DB::table('live_code_requests')
+                ->leftJoin('items', 'live_code_requests.item_id', '=', 'items.id')
+                ->where('live_code_requests.live_id', $liveId)
+                ->where('live_code_requests.user_id', $user->id)
+                ->when(!empty($wonItemIds), function ($q) use ($wonItemIds) {
+                    $q->where(function ($sub) use ($wonItemIds) {
+                        $sub->whereNull('live_code_requests.item_id')
+                            ->orWhereNotIn('live_code_requests.item_id', $wonItemIds);
+                    });
+                })
+                ->select(
+                    'live_code_requests.codigo',
+                    'live_code_requests.item_id',
+                    'items.nome_do_produto',
+                    'items.marca',
+                    'items.tamanho'
+                )
+                ->orderByDesc('live_code_requests.id')
+                ->first();
+
+            if ($missedReq) {
+                $cod = $missedReq->codigo ?: '?';
+                $nome = trim((string) ($missedReq->nome_do_produto ?? ''));
+                $marca = trim((string) ($missedReq->marca ?? ''));
+                $tam = trim((string) ($missedReq->tamanho ?? ''));
+
+                $det = array_filter([$marca ?: null, $tam ? "Tam {$tam}" : null]);
+                $detStr = !empty($det) ? ' (' . implode(' • ', $det) . ')' : '';
+                $pecaDesc = $nome !== '' ? "*[Cód {$cod}] {$nome}{$detStr}*" : "*Cód {$cod}*";
+
+                return [
+                    'type' => 'missed_item',
+                    'data' => [
+                        'codigo' => $cod,
+                        'item_id' => $missedReq->item_id,
+                        'nome' => $nome,
+                        'marca' => $marca,
+                        'tamanho' => $tam,
+                    ],
+                    'message' => "Vi que você também tentou o {$pecaDesc} hoje na live e escapou por segundos 😅\n\nQuer que eu deixe anotado no seu radar da Mania pra te avisar primeiro no WhatsApp quando aparecer algo parecido?",
+                ];
+            }
+        }
+
+        // 2º PRIORIDADE: Sobras da live no tamanho dela (quando escolheu envio imediato)
+        if ($modalidade === 'enviar_agora' && !empty($wonSizes) && DB::getSchemaBuilder()->hasTable('live_items')) {
+            $primarySize = $wonSizes[0];
+            $leftovers = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.live_id', $liveId)
+                ->where('items.status', 'estoque')
+                ->where('items.tamanho', $primarySize)
+                ->when(!empty($wonItemIds), fn($q) => $q->whereNotIn('items.id', $wonItemIds))
+                ->select('items.id', 'items.nome_do_produto', 'items.marca', 'items.tamanho', 'items.preco', 'live_items.codigo_live', 'items.codigo')
+                ->limit(3)
+                ->get();
+
+            if ($leftovers->isNotEmpty()) {
+                return [
+                    'type' => 'live_leftovers_upsell',
+                    'data' => [
+                        'size' => $primarySize,
+                        'count' => $leftovers->count(),
+                    ],
+                    'message' => "Como já vamos montar sua caixinha, ainda cabe mais 1 ou 2 pecinhas sem aumentar o frete! 📦😉\n\nSobraram peças *Tam {$primarySize}* da live de hoje — quer que eu te mande rapidinho antes de fechar o pacote?",
+                ];
+            }
+        }
+
+        // 3º PRIORIDADE: Curadoria / Extrair desejos (client_wishes)
+        $hasRecentWish = false;
+        if (DB::getSchemaBuilder()->hasTable('client_wishes')) {
+            $activeWishesCount = DB::table('client_wishes')
+                ->where('user_id', $user->id)
+                ->where('status', 'active')
+                ->count();
+            $recentWish = DB::table('client_wishes')
+                ->where('user_id', $user->id)
+                ->where('created_at', '>=', now()->subDays(15))
+                ->exists();
+            $hasRecentWish = $recentWish || $activeWishesCount >= 4;
+        }
+
+        if (!$hasRecentWish) {
+            return [
+                'type' => 'curadoria_wish',
+                'data' => ['sizes_hint' => $wonSizes],
+                'message' => "Me conta uma coisa, *{$primeiroNome}* 💖\nTem alguma peça, marca ou tamanho que você tá caçando pras próximas lives? Me fala que já deixo anotado na sua Curadoria pra te avisar quando chegar! ✨",
+            ];
+        }
+
+        // 4º PRIORIDADE: Upsell Clube Mania (recorrente com 3+ pedidos aprovados e não assinante)
+        $isClube = DB::table('clube_assinaturas')
+            ->where('user_id', $user->id)
+            ->where('status', 'ativa')
+            ->exists();
+
+        if (!$isClube) {
+            $approvedOrders = DB::table('pedidos')
+                ->where('user_id', $user->id)
+                ->where('status_pagamento', 'aprovado')
+                ->where('status_pedido', '!=', 'cancelado')
+                ->count();
+
+            if ($approvedOrders >= 3) {
+                return [
+                    'type' => 'clube_upsell',
+                    'data' => ['approved_orders' => $approvedOrders],
+                    'message' => "Aliás, vi que você já garimpa direto com a gente! 🥰\nVocê já conhece o *Clube Mania* (com frete fixo e vantagens VIP)? Se quiser, te explico em 2 linhas como funciona 😉",
+                ];
+            }
+        }
+
+        // 5º FALLBACK: Dado faltante relevante (CEP)
+        $cleanCep = preg_replace('/\D+/', '', (string) ($user->cep ?? ''));
+        if (strlen($cleanCep) !== 8) {
+            return [
+                'type' => 'missing_cep',
+                'data' => [],
+                'message' => "Só pra agilizar quando você quiser fechar sua caixinha: qual é o seu CEP? Já deixo salvo na sua ficha aqui! 📦✨",
+            ];
+        }
+
+        return null;
     }
 
     /**
@@ -698,6 +1062,11 @@ class SeverinoWhatsappAgentService
             . "   - Se ela pedir para *tirar/cancelar uma peça* ou *cancelar tudo*, CHAME IMEDIATAMENTE a ferramenta `remover_itens_sacolinha_live`.\n"
             . "   - Se ela quiser *guardar na sacolinha / adicionar à sacolinha e pagar* (ou pedir o *Pix* / *link de cartão*), CHAME IMEDIATAMENTE a ferramenta `gerar_pagamento_pix_ou_cartao`.\n"
             . "   - Se ela quiser *pedir envio / saber o valor do frete*, CHAME a ferramenta `cotar_frete_envio` (se ela não tiver CEP cadastrado e não informou na mensagem, peça o CEP dela de forma simpática).\n"
+            . "   - Se ela responder ao gancho dizendo que quer ser avisada sobre uma peça/marca/tamanho (ou confirmar interesse na peça que escapou na live), CHAME IMEDIATAMENTE `salvar_desejo_curadoria` para gravar na Curadoria dela!\n"
+            . "   - Se ela disser que quer ver as peças que sobraram da live no tamanho dela, CHAME `buscar_sobras_live_tamanho` e apresente de forma curta e convidativa.\n"
+            . "   - Se ela escolher uma dessas peças extras para colocar na sacolinha/pacote, CHAME `adicionar_peca_extra_sacolinha`.\n"
+            . "   - Se ela informar o CEP apenas para atualizar cadastro (sem pedir frete na hora), CHAME `salvar_cep_cliente`.\n"
+            . "   - Se ela perguntar sobre o *Clube Mania*, explique de forma breve e simpática (frete fixo, benefícios VIP e prioridade na loja) e ofereça transferir pra equipe se quiser assinar.\n"
             . "   - Se ela tiver uma dúvida muito complexa, reclamação, quiser falar com a Grasi/atendente humana ou negociar algo fora da sua alçada, CHAME `transferir_para_atendente_humano`.\n"
             . "3. Quando a ferramenta `gerar_pagamento_pix_ou_cartao` retornar o código Pix Copia e Cola, NÃO cole o código longo no meio do seu texto, pois o sistema já vai enviar o código Pix Copia e Cola em um balão separado logo abaixo da sua mensagem para facilitar ela copiar! Apenas avise: 'Já gerei o seu Pix de R$ XX,XX! Vou mandar o código Copia e Cola logo aqui embaixo pra você só copiar e colar no app do banco 👇✨'.\n\n"
             . "DADOS ATUAIS DA CLIENTE (TEMPO REAL):\n"
@@ -757,6 +1126,77 @@ class SeverinoWhatsappAgentService
                                 ],
                             ],
                             'required' => ['modalidade', 'forma_pagamento'],
+                        ],
+                    ],
+                    [
+                        'name' => 'salvar_desejo_curadoria',
+                        'description' => 'Salva na Curadoria da Minha Mania (tabela client_wishes) uma peça, marca, categoria ou tamanho que a cliente deseja encontrar ou que escapou na live, para avisá-la quando chegar.',
+                        'parameters' => [
+                            'type' => 'OBJECT',
+                            'properties' => [
+                                'descricao' => [
+                                    'type' => 'STRING',
+                                    'description' => 'Texto descrevendo o que a cliente procura (ex: Vestido Farm Tam M, Melissa 37 preta).',
+                                ],
+                                'categoria' => [
+                                    'type' => 'STRING',
+                                    'description' => 'Categoria principal se identificada (ex: Vestido, Calça, Melissa, Jaqueta).',
+                                ],
+                                'tamanho' => [
+                                    'type' => 'STRING',
+                                    'description' => 'Tamanho se informado (ex: P, M, G, 37, 38).',
+                                ],
+                                'marca' => [
+                                    'type' => 'STRING',
+                                    'description' => 'Marca se informada (ex: Farm, Melissa, Zara, Shein).',
+                                ],
+                                'preco_maximo' => [
+                                    'type' => 'NUMBER',
+                                    'description' => 'Preço máximo desejado se a cliente mencionou.',
+                                ],
+                            ],
+                            'required' => ['descricao'],
+                        ],
+                    ],
+                    [
+                        'name' => 'buscar_sobras_live_tamanho',
+                        'description' => 'Busca até 3 peças disponíveis em estoque que sobraram da live atual no tamanho solicitado pela cliente para upsell na mesma caixa/frete.',
+                        'parameters' => [
+                            'type' => 'OBJECT',
+                            'properties' => [
+                                'tamanho' => [
+                                    'type' => 'STRING',
+                                    'description' => 'Tamanho desejado (ex: P, M, G, 37). Se vazio, usa o tamanho das peças que ela comprou na live.',
+                                ],
+                            ],
+                        ],
+                    ],
+                    [
+                        'name' => 'adicionar_peca_extra_sacolinha',
+                        'description' => 'Adiciona na sacolinha da live atual uma peça disponível em estoque que a cliente escolheu após ver as sobras da live.',
+                        'parameters' => [
+                            'type' => 'OBJECT',
+                            'properties' => [
+                                'item_id' => [
+                                    'type' => 'INTEGER',
+                                    'description' => 'ID do item retornado por buscar_sobras_live_tamanho.',
+                                ],
+                            ],
+                            'required' => ['item_id'],
+                        ],
+                    ],
+                    [
+                        'name' => 'salvar_cep_cliente',
+                        'description' => 'Salva o CEP de 8 dígitos informado pela cliente na ficha dela.',
+                        'parameters' => [
+                            'type' => 'OBJECT',
+                            'properties' => [
+                                'cep' => [
+                                    'type' => 'STRING',
+                                    'description' => 'CEP informado (apenas números ou formato 00000-000).',
+                                ],
+                            ],
+                            'required' => ['cep'],
                         ],
                     ],
                     [
@@ -1095,6 +1535,161 @@ class SeverinoWhatsappAgentService
                 ];
             }
 
+            if ($fnName === 'salvar_desejo_curadoria') {
+                $descricao = trim((string) ($args['descricao'] ?? ''));
+                if ($descricao === '') {
+                    return ['success' => false, 'message' => 'Informe a descrição da peça ou marca que a cliente procura.'];
+                }
+
+                $categoria = isset($args['categoria']) ? trim((string) $args['categoria']) : null;
+                $tamanho = isset($args['tamanho']) ? trim((string) $args['tamanho']) : null;
+                $marca = isset($args['marca']) ? trim((string) $args['marca']) : null;
+                $precoMax = isset($args['preco_maximo']) && is_numeric($args['preco_maximo']) ? (float) $args['preco_maximo'] : null;
+
+                $wish = ClientWish::create([
+                    'user_id' => $user->id,
+                    'raw_prompt' => $descricao,
+                    'category' => $categoria ?: null,
+                    'size' => $tamanho ?: null,
+                    'max_price' => $precoMax,
+                    'parsed_attributes' => array_filter([
+                        'brand' => $marca ?: null,
+                        'source' => 'whatsapp_severino_live',
+                        'live_id' => $liveId,
+                    ]),
+                    'status' => 'active',
+                ]);
+
+                return [
+                    'success' => true,
+                    'wish_id' => $wish->id,
+                    'message' => 'Desejo salvo com sucesso na Curadoria da cliente! Agradeça com carinho e diga que ela será avisada assim que chegar algo parecido.',
+                ];
+            }
+
+            if ($fnName === 'buscar_sobras_live_tamanho') {
+                $tamanho = trim((string) ($args['tamanho'] ?? ''));
+                if ($tamanho === '') {
+                    $tamanho = (string) (DB::table('sacolinhas')
+                        ->join('items', 'sacolinhas.item_id', '=', 'items.id')
+                        ->where('sacolinhas.user_id', $user->id)
+                        ->where('sacolinhas.live_id', $liveId)
+                        ->whereNotNull('items.tamanho')
+                        ->where('items.tamanho', '!=', '')
+                        ->value('items.tamanho') ?? '');
+                }
+
+                $items = collect();
+                if (DB::getSchemaBuilder()->hasTable('live_items')) {
+                    $q = DB::table('live_items')
+                        ->join('items', 'live_items.item_id', '=', 'items.id')
+                        ->where('live_items.live_id', $liveId)
+                        ->where('items.status', 'estoque')
+                        ->where(function ($b) {
+                            $b->whereNull('items.brecho_id')->orWhere('items.brecho_id', 1);
+                        });
+                    if ($tamanho !== '') {
+                        $q->where('items.tamanho', $tamanho);
+                    }
+                    $items = $q->select(
+                            'items.id',
+                            'items.nome_do_produto',
+                            'items.marca',
+                            'items.cor',
+                            'items.tamanho',
+                            'items.preco',
+                            'items.codigo',
+                            'live_items.codigo_live'
+                        )
+                        ->limit(3)
+                        ->get();
+                }
+
+                if ($items->isEmpty()) {
+                    return [
+                        'success' => false,
+                        'tamanho' => $tamanho,
+                        'message' => 'Não há sobras disponíveis deste tamanho nesta live no momento. Ofereça anotar o desejo na Curadoria!',
+                    ];
+                }
+
+                return [
+                    'success' => true,
+                    'tamanho' => $tamanho,
+                    'pecas_disponiveis' => $items->map(fn($it) => [
+                        'item_id' => (int) $it->id,
+                        'codigo' => $it->codigo_live ?: $it->codigo,
+                        'nome' => $it->nome_do_produto,
+                        'marca' => $it->marca,
+                        'cor' => $it->cor,
+                        'tamanho' => $it->tamanho,
+                        'preco' => (float) $it->preco,
+                        'preco_formatado' => 'R$ ' . number_format((float) $it->preco, 2, ',', '.'),
+                    ])->values()->toArray(),
+                ];
+            }
+
+            if ($fnName === 'adicionar_peca_extra_sacolinha') {
+                $itemId = (int) ($args['item_id'] ?? 0);
+                if ($itemId <= 0) {
+                    return ['success' => false, 'message' => 'Informe o item_id válido da peça.'];
+                }
+
+                $item = Item::where('id', $itemId)
+                    ->where('status', 'estoque')
+                    ->where(function ($b) {
+                        $b->whereNull('brecho_id')->orWhere('brecho_id', 1);
+                    })
+                    ->first();
+
+                if (!$item) {
+                    return ['success' => false, 'message' => 'Ops, essa peça acabou de sair do estoque! Avise com jeitinho à cliente.'];
+                }
+
+                DB::transaction(function () use ($user, $item, $liveId) {
+                    DB::table('sacolinhas')->insert([
+                        'user_id' => $user->id,
+                        'item_id' => $item->id,
+                        'live_id' => $liveId,
+                        'quantity' => 1,
+                        'price' => (float) ($item->preco ?? 0),
+                        'status' => 'aberta',
+                        'add_at' => now(),
+                        'obs' => 'Upsell pós-live via Severino WhatsApp',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    $item->status = 'reservado';
+                    $item->save();
+                });
+
+                $updatedCtx = $this->buildClientLiveContext($user, $liveId);
+                return [
+                    'success' => true,
+                    'peca_adicionada' => $item->nome_do_produto,
+                    'preco_formatado' => 'R$ ' . number_format((float) $item->preco, 2, ',', '.'),
+                    'novo_total_pagar_live' => $updatedCtx['total_pagar_live'],
+                    'message' => 'Peça adicionada com sucesso na sacolinha da cliente! Informe o novo valor e pergunte se já quer o Pix atualizado.',
+                ];
+            }
+
+            if ($fnName === 'salvar_cep_cliente') {
+                $cepRaw = preg_replace('/\D+/', '', (string) ($args['cep'] ?? ''));
+                if (strlen($cepRaw) !== 8) {
+                    return ['success' => false, 'message' => 'O CEP precisa ter 8 dígitos. Peça para ela conferir o número.'];
+                }
+
+                $user->cep = $cepRaw;
+                $user->save();
+
+                return [
+                    'success' => true,
+                    'cep' => $cepRaw,
+                    'message' => 'CEP salvo na ficha da cliente! Agradeça com carinho.',
+                ];
+            }
+
             if ($fnName === 'transferir_para_atendente_humano') {
                 $motivo = $args['motivo'] ?? 'Solicitação de atendimento humano';
                 self::setSupervisionMode($remoteJid, $user->id, 'human', $motivo);
@@ -1110,6 +1705,419 @@ class SeverinoWhatsappAgentService
         }
 
         return ['success' => false, 'error' => 'Ferramenta desconhecida'];
+    }
+
+    // =========================================================================
+    // FILA CADENCIADA DE FECHAMENTO DE FIM DE LIVE (5s a 55s + PDF + ANTI-BAN)
+    // =========================================================================
+
+    protected static function closingQueueCacheKey(int $liveId): string
+    {
+        return "severino_closing_queue_live_{$liveId}";
+    }
+
+    /**
+     * Inicia a fila cadenciada de fechamento para todas as sacolas abertas da live,
+     * priorizando conversas quentes e respeitando intervalo aleatório humano (5 a 55s).
+     */
+    public function startClosingQueue(int $liveId, array $options = []): array
+    {
+        $live = DB::table('lives')->where('id', $liveId)->first();
+        if (!$live) {
+            return ['success' => false, 'error' => 'Live não encontrada.'];
+        }
+        if (!empty($live->brecho_id) && (int) $live->brecho_id > 1) {
+            return ['success' => false, 'error' => 'Recurso exclusivo da Minha Mania (Matriz).'];
+        }
+
+        $config = self::getConfig();
+        $useTestPhone = array_key_exists('use_test_phone', $options)
+            ? (bool) $options['use_test_phone']
+            : (($config['mode'] ?? 'test') !== 'live');
+        $targetPhone = !empty($options['target_phone'])
+            ? preg_replace('/\D+/', '', (string) $options['target_phone'])
+            : preg_replace('/\D+/', '', (string) ($config['test_phone'] ?: '5548984136870'));
+
+        $minDelay = max(5, min(55, (int) ($options['min_delay'] ?? 5)));
+        $maxDelay = max($minDelay, min(120, (int) ($options['max_delay'] ?? 55)));
+        $limitTest = !empty($options['limit_test']) ? max(1, (int) $options['limit_test']) : null;
+
+        // Busca clientes da live com itens em sacolinha (em modo teste, faz fallback para todos da live caso já encerrada)
+        $userIds = DB::table('sacolinhas')
+            ->where('live_id', $liveId)
+            ->where('status', '!=', 'pedido')
+            ->distinct()
+            ->pluck('user_id')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        if (empty($userIds) && $useTestPhone) {
+            $userIds = DB::table('sacolinhas')
+                ->where('live_id', $liveId)
+                ->distinct()
+                ->pluck('user_id')
+                ->filter()
+                ->values()
+                ->toArray();
+        }
+
+        if (empty($userIds)) {
+            return ['success' => false, 'error' => 'Nenhuma sacola aberta encontrada nesta live para fechamento.'];
+        }
+
+        // Busca clientes que responderam no WhatsApp nas últimas 24h (Prioridade 1 - Conversa Quente)
+        $hotUserIds = EvolutionMessage::whereIn('user_id', $userIds)
+            ->where('direction', 'inbound')
+            ->where('created_at', '>=', now()->subHours(24))
+            ->distinct()
+            ->pluck('user_id')
+            ->flip()
+            ->toArray();
+
+        // Clientes que receberam mensagem hoje nesta live (Prioridade 2)
+        $contactedTodayIds = EvolutionMessage::whereIn('user_id', $userIds)
+            ->where('direction', 'outbound')
+            ->where('status', '!=', 'failed')
+            ->where('created_at', '>=', now()->subHours(12))
+            ->distinct()
+            ->pluck('user_id')
+            ->flip()
+            ->toArray();
+
+        // Clientes recorrentes (têm pedido aprovado anterior)
+        $returningUserIds = DB::table('pedidos')
+            ->whereIn('user_id', $userIds)
+            ->where('status_pagamento', 'aprovado')
+            ->where('status_pedido', '!=', 'cancelado')
+            ->distinct()
+            ->pluck('user_id')
+            ->flip()
+            ->toArray();
+
+        $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+
+        $queueItems = [];
+        foreach ($userIds as $uid) {
+            $u = $users->get($uid);
+            if (!$u) {
+                continue;
+            }
+
+            $realPhone = preg_replace('/\D+/', '', (string) ($u->whatsapp ?: ($u->phone ?: $u->telefone_principal)));
+
+            // Calcula prioridade anti-bloqueio (1 = melhor reputação/conversa quente ... 4 = 1º contato)
+            if (isset($hotUserIds[$uid])) {
+                $priority = 1;
+                $priorityLabel = '🔥 Conversa quente';
+            } elseif (isset($contactedTodayIds[$uid]) && isset($returningUserIds[$uid])) {
+                $priority = 2;
+                $priorityLabel = '💬 Ativa hoje + Recorrente';
+            } elseif (isset($returningUserIds[$uid])) {
+                $priority = 3;
+                $priorityLabel = '⭐ Cliente recorrente';
+            } else {
+                $priority = 4;
+                $priorityLabel = '🆕 1º contato / 1ª compra';
+            }
+
+            $hasValidPhone = $useTestPhone ? (strlen($targetPhone) >= 8) : (strlen($realPhone) >= 8);
+
+            $queueItems[] = [
+                'user_id' => (int) $uid,
+                'name' => $u->name,
+                'phone' => $useTestPhone ? $targetPhone : $realPhone,
+                'priority' => $priority,
+                'priority_label' => $priorityLabel,
+                'status' => $hasValidPhone ? 'pending' : 'skipped',
+                'error' => $hasValidPhone ? null : 'Sem telefone WhatsApp cadastrado',
+                'pdf_sent' => false,
+                'sent_at' => null,
+            ];
+        }
+
+        // Ordena por prioridade anti-bloqueio (1 -> 4)
+        usort($queueItems, fn($a, $b) => $a['priority'] <=> $b['priority']);
+
+        if ($useTestPhone && $limitTest !== null && count($queueItems) > $limitTest) {
+            $queueItems = array_slice($queueItems, 0, $limitTest);
+        }
+
+        $state = [
+            'live_id' => $liveId,
+            'status' => 'running',
+            'mode' => $useTestPhone ? 'test' : 'live',
+            'test_phone' => $useTestPhone ? $targetPhone : null,
+            'min_delay' => $minDelay,
+            'max_delay' => $maxDelay,
+            'started_at' => now()->toIso8601String(),
+            'updated_at' => now()->toIso8601String(),
+            'finished_at' => null,
+            'next_send_at' => now()->toIso8601String(),
+            'last_delay_seconds' => 0,
+            'current_client' => null,
+            'queue' => $queueItems,
+        ];
+
+        Cache::put(self::closingQueueCacheKey($liveId), $state, now()->addHours(48));
+
+        // Dispara o primeiro item imediatamente na fila whatsapp
+        ProcessSeverinoLiveClosingQueueJob::dispatch($liveId)->onQueue('whatsapp');
+
+        return [
+            'success' => true,
+            'state' => self::summarizeClosingQueueState($state),
+        ];
+    }
+
+    public static function getClosingQueueStatus(int $liveId): array
+    {
+        $state = Cache::get(self::closingQueueCacheKey($liveId));
+        if (!$state) {
+            return [
+                'active' => false,
+                'status' => 'idle',
+                'live_id' => $liveId,
+            ];
+        }
+        return self::summarizeClosingQueueState($state);
+    }
+
+    public static function pauseClosingQueue(int $liveId): array
+    {
+        $key = self::closingQueueCacheKey($liveId);
+        $state = Cache::get($key);
+        if (!$state) {
+            return ['success' => false, 'error' => 'Nenhuma fila encontrada para esta live.'];
+        }
+        if ($state['status'] === 'running') {
+            $state['status'] = 'paused';
+            $state['next_send_at'] = null;
+            $state['updated_at'] = now()->toIso8601String();
+            Cache::put($key, $state, now()->addHours(48));
+        }
+        return ['success' => true, 'state' => self::summarizeClosingQueueState($state)];
+    }
+
+    public static function resumeClosingQueue(int $liveId): array
+    {
+        $key = self::closingQueueCacheKey($liveId);
+        $state = Cache::get($key);
+        if (!$state) {
+            return ['success' => false, 'error' => 'Nenhuma fila encontrada para esta live.'];
+        }
+        if (in_array($state['status'], ['paused'], true)) {
+            $state['status'] = 'running';
+            $state['next_send_at'] = now()->toIso8601String();
+            $state['updated_at'] = now()->toIso8601String();
+            Cache::put($key, $state, now()->addHours(48));
+            ProcessSeverinoLiveClosingQueueJob::dispatch($liveId)->onQueue('whatsapp');
+        }
+        return ['success' => true, 'state' => self::summarizeClosingQueueState($state)];
+    }
+
+    public static function cancelClosingQueue(int $liveId): array
+    {
+        $key = self::closingQueueCacheKey($liveId);
+        $state = Cache::get($key);
+        if (!$state) {
+            return ['success' => false, 'error' => 'Nenhuma fila encontrada para esta live.'];
+        }
+        $state['status'] = 'cancelled';
+        $state['next_send_at'] = null;
+        $state['finished_at'] = now()->toIso8601String();
+        $state['updated_at'] = now()->toIso8601String();
+        Cache::put($key, $state, now()->addHours(48));
+        return ['success' => true, 'state' => self::summarizeClosingQueueState($state)];
+    }
+
+    /**
+     * Processa 1 cliente pendente da fila cadenciada e agenda a próxima com intervalo aleatório (5 a 55s)
+     */
+    public function processNextInClosingQueue(int $liveId): void
+    {
+        $lock = Cache::lock("severino_closing_lock_{$liveId}", 90);
+        if (!$lock->get()) {
+            return;
+        }
+
+        try {
+            $key = self::closingQueueCacheKey($liveId);
+            $state = Cache::get($key);
+            if (!$state || ($state['status'] ?? '') !== 'running') {
+                return;
+            }
+
+            $nextIndex = null;
+            foreach ($state['queue'] as $idx => $entry) {
+                if (($entry['status'] ?? '') === 'pending') {
+                    $nextIndex = $idx;
+                    break;
+                }
+            }
+
+            if ($nextIndex === null) {
+                $state['status'] = 'completed';
+                $state['current_client'] = null;
+                $state['next_send_at'] = null;
+                $state['finished_at'] = now()->toIso8601String();
+                $state['updated_at'] = now()->toIso8601String();
+                Cache::put($key, $state, now()->addHours(48));
+                return;
+            }
+
+            $entry = $state['queue'][$nextIndex];
+            $state['current_client'] = $entry['name'];
+            $state['updated_at'] = now()->toIso8601String();
+            Cache::put($key, $state, now()->addHours(48));
+
+            $useTestPhone = ($state['mode'] ?? 'test') === 'test';
+            $overridePhone = $useTestPhone ? ($state['test_phone'] ?? null) : null;
+
+            $res = $this->sendLiveClosingMessage(
+                (int) $entry['user_id'],
+                $liveId,
+                $overridePhone,
+                $useTestPhone
+            );
+
+            // Recarrega o estado caso o operador tenha clicado em Pausar/Cancelar durante o envio
+            $state = Cache::get($key) ?: $state;
+            $state['queue'][$nextIndex]['status'] = !empty($res['success']) ? 'sent' : 'failed';
+            $state['queue'][$nextIndex]['pdf_sent'] = !empty($res['pdf_sent']);
+            $state['queue'][$nextIndex]['error'] = !empty($res['success']) ? null : ($res['error'] ?? 'Falha no envio');
+            $state['queue'][$nextIndex]['sent_at'] = now()->format('H:i:s');
+            $state['current_client'] = null;
+            $state['updated_at'] = now()->toIso8601String();
+
+            // Verifica se ainda há pendentes
+            $hasMorePending = collect($state['queue'])->contains(fn($e) => ($e['status'] ?? '') === 'pending');
+
+            if (!$hasMorePending) {
+                $state['status'] = 'completed';
+                $state['next_send_at'] = null;
+                $state['finished_at'] = now()->toIso8601String();
+                Cache::put($key, $state, now()->addHours(48));
+                return;
+            }
+
+            if (($state['status'] ?? '') === 'running') {
+                $minDelay = max(5, (int) ($state['min_delay'] ?? 5));
+                $maxDelay = max($minDelay, (int) ($state['max_delay'] ?? 55));
+                $delaySeconds = random_int($minDelay, $maxDelay);
+
+                $state['last_delay_seconds'] = $delaySeconds;
+                $state['next_send_at'] = now()->addSeconds($delaySeconds)->toIso8601String();
+                Cache::put($key, $state, now()->addHours(48));
+
+                ProcessSeverinoLiveClosingQueueJob::dispatch($liveId)
+                    ->onQueue('whatsapp')
+                    ->delay(now()->addSeconds($delaySeconds));
+            } else {
+                Cache::put($key, $state, now()->addHours(48));
+            }
+        } finally {
+            optional($lock)->release();
+        }
+    }
+
+    protected static function summarizeClosingQueueState(array $state): array
+    {
+        $queue = $state['queue'] ?? [];
+        $total = count($queue);
+        $sent = count(array_filter($queue, fn($e) => ($e['status'] ?? '') === 'sent'));
+        $failed = count(array_filter($queue, fn($e) => ($e['status'] ?? '') === 'failed'));
+        $skipped = count(array_filter($queue, fn($e) => ($e['status'] ?? '') === 'skipped'));
+        $pending = count(array_filter($queue, fn($e) => ($e['status'] ?? '') === 'pending'));
+        $pdfsSent = count(array_filter($queue, fn($e) => !empty($e['pdf_sent'])));
+
+        $nextInSeconds = null;
+        if (($state['status'] ?? '') === 'running' && !empty($state['next_send_at'])) {
+            $diff = Carbon::parse($state['next_send_at'])->diffInSeconds(now(), false);
+            $nextInSeconds = max(0, -$diff);
+        }
+
+        return [
+            'active' => in_array($state['status'] ?? '', ['running', 'paused'], true),
+            'live_id' => $state['live_id'] ?? null,
+            'status' => $state['status'] ?? 'idle',
+            'mode' => $state['mode'] ?? 'test',
+            'test_phone' => $state['test_phone'] ?? null,
+            'min_delay' => $state['min_delay'] ?? 5,
+            'max_delay' => $state['max_delay'] ?? 55,
+            'total' => $total,
+            'sent' => $sent,
+            'failed' => $failed,
+            'skipped' => $skipped,
+            'pending' => $pending,
+            'pdfs_sent' => $pdfsSent,
+            'progress_percent' => $total > 0 ? (int) round((($sent + $failed + $skipped) / $total) * 100) : 0,
+            'current_client' => $state['current_client'] ?? null,
+            'next_in_seconds' => $nextInSeconds,
+            'last_delay_seconds' => $state['last_delay_seconds'] ?? null,
+            'started_at' => $state['started_at'] ?? null,
+            'finished_at' => $state['finished_at'] ?? null,
+            'items' => array_slice($queue, 0, 100),
+        ];
+    }
+
+    /**
+     * Envia mídia (ex: PDF da live) via EvolutionApiService e registra em evolution_messages como enviada pelo Severino
+     */
+    protected function sendAndRecordSeverinoMedia(
+        string $toPhoneOrJid,
+        User $user,
+        string $mediaUrlOrBase64,
+        ?string $publicMediaUrl,
+        string $caption,
+        string $fileName,
+        array $meta = [],
+        bool $keepExistingMode = false,
+        int $delay = 1400
+    ): array {
+        $res = $this->evolution->sendMedia($toPhoneOrJid, $mediaUrlOrBase64, $caption, 'document', $fileName, $delay);
+        $status = ($res['success'] ?? false) ? 'sent' : 'failed';
+        $messageId = $res['message_id'] ?? null;
+        $canonicalJid = $res['remote_jid'] ?? (str_contains($toPhoneOrJid, '@') ? $toPhoneOrJid : (preg_replace('/\D+/', '', $toPhoneOrJid) . '@s.whatsapp.net'));
+        $digits = preg_replace('/\D+/', '', explode('@', $canonicalJid)[0] ?? '');
+
+        if (!$keepExistingMode) {
+            self::setSupervisionMode($canonicalJid, $user->id, 'severino');
+        }
+
+        $pushName = $user->name;
+        if (!empty($meta['is_test'])) {
+            $pushName = "🧪 [Teste: {$user->name}]";
+        }
+
+        $msg = EvolutionMessage::create([
+            'user_id' => $user->id,
+            'admin_id' => auth()->id(),
+            'instance_name' => 'sacolinhas',
+            'remote_jid' => $canonicalJid,
+            'push_name' => $pushName,
+            'direction' => 'outbound',
+            'status' => $status,
+            'message_id' => $messageId,
+            'from' => 'severino',
+            'to' => $digits ?: $canonicalJid,
+            'body' => $caption,
+            'media_type' => 'document',
+            'media_url' => $publicMediaUrl,
+            'failed_reason' => ($status === 'failed') ? ($res['error'] ?? 'Falha no envio do PDF') : null,
+            'raw_payload' => array_merge($res, [
+                'sender_type' => 'severino',
+                'file_name' => $fileName,
+                'severino_meta' => $meta,
+            ]),
+        ]);
+
+        return [
+            'success' => $status === 'sent',
+            'message' => $msg,
+            'remote_jid' => $canonicalJid,
+            'error' => $res['error'] ?? null,
+        ];
     }
 
     /**
