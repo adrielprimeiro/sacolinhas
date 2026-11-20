@@ -129,21 +129,24 @@ class SeverinoWhatsappAgentService
     }
 
     /**
-     * Registra qual cliente/live está sendo simulado no telefone de teste
+     * Registra qual cliente/live está ativo para este telefone (em teste ou em produção)
      */
-    public static function setTestContext(string $testPhone, int $userId, int $liveId): void
+    public static function setTestContext(string $testPhone, int $userId, int $liveId, bool $isTest = true): void
     {
         $phoneKey = self::normalizePhoneKey($testPhone);
         $context = [
             'user_id' => $userId,
             'live_id' => $liveId,
             'test_phone' => $testPhone,
+            'is_test' => $isTest,
             'updated_at' => now()->toDateTimeString(),
         ];
         if ($phoneKey) {
             Cache::put('severino_test_ctx_' . $phoneKey, $context, now()->addHours(24));
         }
-        Cache::put('severino_test_ctx_latest', $context, now()->addHours(24));
+        if ($isTest) {
+            Cache::put('severino_test_ctx_latest', $context, now()->addHours(24));
+        }
     }
 
     /**
@@ -302,9 +305,8 @@ class SeverinoWhatsappAgentService
         $saudacao = $state['saudacao_horario'];
         $saudacaoCap = $state['saudacao_cap'];
 
-        if ($isTest) {
-            self::setTestContext($cleanPhone, $userId, $liveId);
-        }
+        // Registra contexto da live ativa para este número (marcando se é teste ou cliente real)
+        self::setTestContext($cleanPhone, $userId, $liveId, $isTest);
 
         $greetingResult = null;
         $sentTwoBalloons = false;
@@ -577,8 +579,8 @@ class SeverinoWhatsappAgentService
             . "3️⃣ *Cancelar algum item ou cancelar tudo*\n\n"
             . "Me diz aqui sua opção que eu já resolvo pra você na hora! 😊";
 
-        // Salva o contexto da última live fechada para este telefone
-        self::setTestContext($cleanPhone, $userId, $liveId);
+        // Salva o contexto da última live fechada para este telefone (marcando se é teste ou real)
+        self::setTestContext($cleanPhone, $userId, $liveId, $isTest);
 
         // 1) Gera e envia o mesmo PDF padrão da sacolinha da live antes do texto de fechamento
         $pdfSent = false;

@@ -78,6 +78,29 @@
 				</button>
 			</div>
 
+			<!-- Controle Global do Severino (sincronizado com a Live) -->
+			<div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:8px 12px;">
+				<div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+					<span style="font-size:0.7rem; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.03em;">
+						🤖 Severino (Global)
+					</span>
+					<button type="button" id="btnGlobalAutoReply" onclick="toggleGlobalAutoReply()"
+							class="btn btn-sm py-0 px-2 fw-bold"
+							style="font-size:0.7rem; border-radius:999px; background:#dcfce7; color:#14532d; border:1px solid #86efac;"
+							title="Liga ou pausa as respostas automáticas da IA para TODAS as conversas">
+						🤖 IA Global: ON
+					</button>
+				</div>
+				<select id="globalSeverinoMode" onchange="saveGlobalSeverinoConfig()"
+						class="form-select form-select-sm fw-bold"
+						style="font-size:0.75rem; background:#ffffff; color:#0f172a; border-color:#cbd5e1;"
+						title="Define o destino dos disparos ao clicar na cliente na Live">
+					<option value="test">🧪 Live: Enviar p/ Tel Teste</option>
+					<option value="live">🟢 Live: Enviar p/ Cliente Real</option>
+					<option value="off">⚪ Live: Disparo Desativado</option>
+				</select>
+			</div>
+
 			<div class="conversation-search">
 				<div class="conversation-search-wrap">
 					<i class="bi bi-search search-icon"></i>
@@ -101,6 +124,11 @@
 					</div>
 				</div>
 				<div class="d-flex align-items-center gap-2 flex-wrap">
+					<button type="button" id="btnToggleSimulator" onclick="toggleSimulatorBar()"
+							class="btn btn-sm fw-bold" style="display:none; border-radius:999px; font-size:0.75rem; background:#ffffff; color:#312e81; border:1px solid #c7d2fe;"
+							title="Abrir/fechar barra para simular resposta da cliente (testes)">
+						🧪 Simular
+					</button>
 					<button type="button" id="btnToggleSupervision" onclick="toggleConversationSupervision()" 
 							class="btn btn-sm fw-bold" style="display:none; border-radius:999px; font-size:0.78rem;">
 					</button>
@@ -416,14 +444,85 @@
 			selectConversation(userId, remoteJid, name, phone, supMode);
 		}
 
+		let globalSeverinoConfig = { mode: 'test', auto_reply: true };
+
+		async function loadGlobalSeverinoConfig() {
+			try {
+				const res = await fetch('/admin/chat-evolution/api/severino-config');
+				const data = await res.json();
+				if (data.success && data.config) {
+					globalSeverinoConfig = data.config;
+					renderGlobalSeverinoUI();
+				}
+			} catch (e) {
+				console.warn('Erro ao carregar config global Severino:', e);
+			}
+		}
+
+		function renderGlobalSeverinoUI() {
+			const sel = document.getElementById('globalSeverinoMode');
+			const btn = document.getElementById('btnGlobalAutoReply');
+			if (sel && globalSeverinoConfig.mode) {
+				sel.value = globalSeverinoConfig.mode;
+			}
+			if (btn) {
+				if (globalSeverinoConfig.auto_reply) {
+					btn.style.background = '#dcfce7';
+					btn.style.color = '#14532d';
+					btn.style.borderColor = '#86efac';
+					btn.innerText = '🤖 IA Global: ON';
+				} else {
+					btn.style.background = '#fef3c7';
+					btn.style.color = '#78350f';
+					btn.style.borderColor = '#fcd34d';
+					btn.innerText = '⏸️ IA Global: OFF';
+				}
+			}
+		}
+
+		async function saveGlobalSeverinoConfig(overridePatch = {}) {
+			const sel = document.getElementById('globalSeverinoMode');
+			const payload = {
+				mode: overridePatch.mode !== undefined ? overridePatch.mode : (sel ? sel.value : globalSeverinoConfig.mode),
+				auto_reply: overridePatch.auto_reply !== undefined ? overridePatch.auto_reply : globalSeverinoConfig.auto_reply,
+			};
+			try {
+				const res = await fetch('/admin/chat-evolution/api/severino-config', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+					body: JSON.stringify(payload)
+				});
+				const data = await res.json();
+				if (data.success && data.config) {
+					globalSeverinoConfig = data.config;
+					renderGlobalSeverinoUI();
+				}
+			} catch (e) {
+				alert('Erro ao salvar configuração do Severino.');
+			}
+		}
+
+		function toggleGlobalAutoReply() {
+			const nextState = !globalSeverinoConfig.auto_reply;
+			saveGlobalSeverinoConfig({ auto_reply: nextState });
+		}
+
+		function toggleSimulatorBar() {
+			const simArea = document.getElementById('simulatorArea');
+			if (!simArea) return;
+			simArea.style.display = (simArea.style.display === 'none' || simArea.style.display === '') ? 'block' : 'none';
+		}
+
 		// Seleciona conversa
 		async function selectConversation(userId, remoteJid, name, phone, supMode = 'severino') {
 			activeConv = { userId, remoteJid, name, phone, supervisionMode: supMode };
 			document.getElementById('currentUserName').innerText = name;
 			document.getElementById('currentUserPhone').innerText = phone;
 			document.getElementById('chatInputArea').style.display = 'flex';
+			const btnSim = document.getElementById('btnToggleSimulator');
+			if (btnSim) btnSim.style.display = 'inline-block';
 			const simArea = document.getElementById('simulatorArea');
-			if (simArea) simArea.style.display = 'block';
+			if (simArea) simArea.style.display = 'none';
 			updateSupervisionButtonUI(supMode);
 
 			loadMessages();
@@ -557,8 +656,10 @@
 
 		// Inicialização
 		checkStatus();
+		loadGlobalSeverinoConfig();
 		loadConversations();
 		setInterval(checkStatus, 15000);
+		setInterval(loadGlobalSeverinoConfig, 15000);
 		setInterval(() => {
 			loadConversations();
 			if (activeConv.remoteJid || activeConv.userId) loadMessages();

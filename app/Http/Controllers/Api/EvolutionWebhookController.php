@@ -140,20 +140,23 @@ class EvolutionWebhookController extends Controller
             return;
         }
 
-        // Verifica se há um contexto de teste ativo para este número (ex: 5548984136870)
+        // Verifica se há um contexto de live/teste ativo para este número
         $testCtx = \App\Services\Ai\SeverinoWhatsappAgentService::getTestContextForPhone($remoteJid);
+        $isTestSession = !empty($testCtx) && ($testCtx['is_test'] ?? true);
         if ($testCtx && !empty($testCtx['user_id'])) {
             $testUser = User::find($testCtx['user_id']);
             if ($testUser) {
                 $user = $testUser;
-                $pushName = "🧪 [Teste: {$testUser->name}]";
+                $pushName = $isTestSession
+                    ? "🧪 [Teste: {$testUser->name}]"
+                    : ($pushName ?: $testUser->name);
             }
         }
 
-        // Se a mensagem veio do próprio aparelho conectado (self-chat 84136870) digitada manualmente no celular (não enviada pela API),
-        // e existe um contexto de teste ativo, tratamos como resposta de teste da cliente para o Severino responder!
+        // Se a mensagem veio do próprio aparelho conectado (self-chat de teste) digitada manualmente no celular (não enviada pela API),
+        // e existe um contexto de TESTE ativo, tratamos como resposta de teste da cliente para o Severino responder!
         $isSelfChatTestReply = false;
-        if ($fromMe && str_ends_with($digits, '84136870') && $testCtx) {
+        if ($fromMe && $isTestSession && str_ends_with($digits, '84136870')) {
             $isSelfChatTestReply = true;
             $fromMe = false;
         }
