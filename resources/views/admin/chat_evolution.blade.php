@@ -402,8 +402,8 @@
 					const unread = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : '';
 					const supMode = c.supervision_mode || 'severino';
 					const supBadge = supMode === 'human'
-						? `<span style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; font-size:0.65rem; font-weight:700; padding:1px 6px; border-radius:999px;">👩‍💻 Humano</span>`
-						: `<span style="background:#e0e7ff; color:#1e1b4b; border:1px solid #818cf8; font-size:0.65rem; font-weight:700; padding:1px 6px; border-radius:999px;">🤖 Severino</span>`;
+						? `<span style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; font-size:0.64rem; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; flex-shrink:0;">👩‍💻 Humano</span>`
+						: `<span style="background:#e0e7ff; color:#1e1b4b; border:1px solid #818cf8; font-size:0.64rem; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; flex-shrink:0;">🤖 Severino</span>`;
 
 					if (isSelected) {
 						updateSupervisionButtonUI(supMode);

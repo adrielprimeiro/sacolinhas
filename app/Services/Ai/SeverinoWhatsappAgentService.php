@@ -273,6 +273,17 @@ class SeverinoWhatsappAgentService
             return ['success' => false, 'error' => 'Cliente sem telefone WhatsApp cadastrado.'];
         }
 
+        // Trava atômica anti-duplicidade: impede 2 envios simultâneos/duplicados para a mesma peça + cliente + live
+        $dedupKey = "severino_item_won_sent_{$liveId}_{$userId}_{$itemId}";
+        if (!$forceSend && !Cache::add($dedupKey, now()->toIso8601String(), now()->addHours(12))) {
+            return [
+                'success' => false,
+                'skipped' => true,
+                'duplicate' => true,
+                'reason' => 'Notificação desta peça já enviada para esta cliente nesta live.',
+            ];
+        }
+
         // Busca código da live se não informado
         if (!$codigoLive && DB::getSchemaBuilder()->hasTable('live_items')) {
             $codigoLive = DB::table('live_items')
@@ -291,10 +302,11 @@ class SeverinoWhatsappAgentService
         $precoPeca = $priceOverride !== null ? $priceOverride : (float) ($item->preco ?? 0);
         $primeiroNome = explode(' ', trim($user->apelido ?: $user->name))[0] ?: 'Lindeza';
         $codDisplay = $codigoLive ? "Cód {$codigoLive}" : ($item->codigo ? "Cód {$item->codigo}" : "Peça");
+        $cleanSize = self::formatItemSize($item->tamanho);
         $detalhes = array_filter([
             $item->marca ?: null,
             $item->cor ?: null,
-            $item->tamanho ? "Tam {$item->tamanho}" : null,
+            $cleanSize ? "Tam {$cleanSize}" : null,
         ]);
         $detalhesStr = !empty($detalhes) ? ' (' . implode(' • ', $detalhes) . ')' : '';
         $nomePeca = trim($item->nome_do_produto ?: ($item->descricao ?: 'Peça da Live'));
@@ -311,8 +323,13 @@ class SeverinoWhatsappAgentService
         $greetingResult = null;
         $sentTwoBalloons = false;
 
+        // Trava atômica de saudação: garante no máximo 1 abertura por cliente nesta live, mesmo com 2 peças clicadas em paralelo
+        $greetingKey = "severino_live_greeted_{$liveId}_{$userId}";
+        $shouldSendGreeting = $state['is_starting_conversation']
+            && Cache::add($greetingKey, now()->toIso8601String(), now()->addHours(10));
+
         // Se estamos INICIANDO UMA CONVERSA (ou 1º contato na vida): envia Balão 1 (saudação/segurança) antes da peça
-        if ($state['is_starting_conversation']) {
+        if ($shouldSendGreeting) {
             if ($state['is_first_contact_ever'] || $state['is_first_purchase']) {
                 $aberturas = [
                     "Oii, *{$primeiroNome}*! 💖 Aqui é a equipe da *Minha Mania Brechó*. Que alegria ter você na sua primeira live com a gente! Vou te mandando por aqui cada peça que você garantir, tá?",
@@ -337,11 +354,15 @@ class SeverinoWhatsappAgentService
                 'conversation_state' => $state,
             ], keepExistingMode: false, delay: 1600);
 
-            $sentTwoBalloons = true;
+            if (empty($greetingResult['success'])) {
+                Cache::forget($greetingKey);
+            } else {
+                $sentTwoBalloons = true;
+            }
         }
 
         // Balão da peça (sempre frase curta <= 5 palavras + peça em destaque, sem somatórios)
-        if ($state['is_starting_conversation'] || $qtdItensLive <= 1) {
+        if ($sentTwoBalloons || $qtdItensLive <= 1) {
             $frases = [
                 "Peça garantida na live! 🎉",
                 "Anotado pra você! ✨",
@@ -369,11 +390,47 @@ class SeverinoWhatsappAgentService
             'conversation_state' => $state,
         ], keepExistingMode: $sentTwoBalloons, delay: $sentTwoBalloons ? 2200 : 1500);
 
+        if (empty($itemRes['success']) && !$forceSend) {
+            Cache::forget($dedupKey);
+        }
+
         $itemRes['sent_two_balloons'] = $sentTwoBalloons;
         $itemRes['conversation_state'] = $state;
         $itemRes['greeting_result'] = $greetingResult;
 
         return $itemRes;
+    }
+
+    /**
+     * Sanitiza o tamanho da peça (corrige casos em que o Excel converteu ex: "5/6" em data JS "Fri Jun 05 2026... GMT-0300")
+     */
+    public static function formatItemSize(?string $rawSize): ?string
+    {
+        $size = trim((string) $rawSize);
+        if ($size === '') {
+            return null;
+        }
+
+        // Detecta string de Date do JavaScript (ex: "Fri Jun 05 2026 00:00:00 GMT-0300 ...")
+        if (preg_match('/^[A-Z][a-z]{2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+\d{4}/i', $size, $m)) {
+            $months = [
+                'jan' => 1, 'feb' => 2, 'mar' => 3, 'apr' => 4,
+                'may' => 5, 'jun' => 6, 'jul' => 7, 'aug' => 8,
+                'sep' => 9, 'oct' => 10, 'nov' => 11, 'dec' => 12,
+            ];
+            $mes = $months[strtolower($m[1])] ?? null;
+            $dia = (int) $m[2];
+            if ($mes && $dia > 0) {
+                return "{$dia}/{$mes}";
+            }
+            return null;
+        }
+
+        if (stripos($size, 'GMT') !== false || mb_strlen($size) > 20) {
+            return null;
+        }
+
+        return $size;
     }
 
     /**
