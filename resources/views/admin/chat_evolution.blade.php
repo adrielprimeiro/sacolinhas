@@ -587,12 +587,22 @@
 							: `<div style="font-size:0.7rem; font-weight:700; color:#065f46; margin-bottom:3px;">👩‍💻 ${escapeHtml(m.admin_name || 'Atendente')}</div>`)
 						: '';
 
+					let failNotice = '';
+					if (m.status === 'failed') {
+						const rawErr = String(m.failed_reason || '');
+						const friendlyErr = rawErr.includes('"exists":false')
+							? 'Número não encontrado no WhatsApp (confira DDD/DDI)'
+							: (rawErr ? rawErr.substring(0, 120) : 'Falha no envio');
+						failNotice = `<div style="margin-top:6px; padding:3px 7px; border-radius:6px; background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; font-size:0.7rem; font-weight:700;">⚠️ Não enviada: ${escapeHtml(friendlyErr)}</div>`;
+					}
+
 					return `
 						<div class="message-row">
 							<div class="message-bubble ${m.direction === 'outbound' ? 'sent-message' : 'received-message'}">
 								${senderBadge}
 								${m.media_url ? `<div class="mb-2"><a href="${m.media_url}" target="_blank" class="btn btn-sm bg-white text-dark border border-secondary-subtle fw-semibold shadow-sm"><i class="bi ${String(m.media_url).toLowerCase().endsWith('.pdf') ? 'bi-file-earmark-pdf-fill text-danger' : 'bi-file-earmark'} me-1"></i>${String(m.media_url).toLowerCase().endsWith('.pdf') ? 'Abrir PDF' : 'Ver anexo'}</a></div>` : ''}
 								<div class="message-content">${m.body ? escapeHtml(m.body) : ''}</div>
+								${failNotice}
 								<div class="timestamp">
 									<span>${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
 									${m.direction === 'outbound' ? `<i class="bi ${m.status === 'read' ? 'bi-check2-all text-primary' : (m.status === 'failed' ? 'bi-exclamation-circle text-danger' : 'bi-check2')}"></i>` : ''}

@@ -320,13 +320,13 @@ class SeverinoWhatsappAgentService
             return ['success' => false, 'error' => 'Cliente ou peça não encontrados.'];
         }
 
-        // Define telefone de destino (Teste vs Cliente Real)
+        // Define telefone de destino (Teste vs Cliente Real) normalizando DDI 55 corretamente (inclusive DDD 55 do RS!)
         $isTest = ($overridePhone !== null) || ($mode === 'test');
         $targetPhone = $overridePhone ?: ($isTest ? ($config['test_phone'] ?: '5548984136870') : ($user->whatsapp ?: ($user->phone ?: $user->telefone_principal)));
-        $cleanPhone = preg_replace('/\D+/', '', (string) $targetPhone);
+        $cleanPhone = EvolutionApiService::normalizeBrazilPhone((string) $targetPhone);
 
-        if (strlen($cleanPhone) < 8) {
-            return ['success' => false, 'error' => 'Cliente sem telefone WhatsApp cadastrado.'];
+        if (strlen($cleanPhone) < 10) {
+            return ['success' => false, 'error' => 'Cliente sem telefone WhatsApp válido (com DDD).'];
         }
 
         // Trava atômica anti-duplicidade: impede 2 envios simultâneos/duplicados para a mesma peça + cliente + live
@@ -412,6 +412,14 @@ class SeverinoWhatsappAgentService
 
             if (empty($greetingResult['success'])) {
                 Cache::forget($greetingKey);
+                if (!$forceSend) {
+                    Cache::forget($dedupKey);
+                }
+                return [
+                    'success' => false,
+                    'error' => $greetingResult['error'] ?? 'Falha ao enviar abertura no WhatsApp.',
+                    'greeting_result' => $greetingResult,
+                ];
             } else {
                 $sentTwoBalloons = true;
             }
@@ -659,10 +667,10 @@ class SeverinoWhatsappAgentService
 
         $isTest = ($overridePhone !== null) || $useTestPhone || (($config['mode'] ?? 'test') === 'test');
         $targetPhone = $overridePhone ?: ($isTest ? ($config['test_phone'] ?: '5548984136870') : ($user->whatsapp ?: ($user->phone ?: $user->telefone_principal)));
-        $cleanPhone = preg_replace('/\D+/', '', (string) $targetPhone);
+        $cleanPhone = EvolutionApiService::normalizeBrazilPhone((string) $targetPhone);
 
-        if (strlen($cleanPhone) < 8) {
-            return ['success' => false, 'error' => 'Cliente sem telefone WhatsApp cadastrado.'];
+        if (strlen($cleanPhone) < 10) {
+            return ['success' => false, 'error' => 'Cliente sem telefone WhatsApp válido (com DDD).'];
         }
 
         // Sensor de conversa: só coloca saudação curta se ainda NÃO conversamos hoje com esta cliente
@@ -813,11 +821,13 @@ class SeverinoWhatsappAgentService
 
         $user = $userId ? User::find($userId) : null;
         if (!$user) {
-            $digits = preg_replace('/\D+/', '', explode('@', $remoteJid)[0] ?? '');
+            $digits = ltrim(preg_replace('/\D+/', '', explode('@', $remoteJid)[0] ?? ''), '0');
             if (strlen($digits) >= 8) {
-                $without55 = str_starts_with($digits, '55') ? substr($digits, 2) : $digits;
-                $user = User::whereIn('whatsapp', [$digits, $without55, '55' . $without55])
-                    ->orWhereIn('phone', [$digits, $without55, '55' . $without55])
+                $without55 = (strlen($digits) >= 12 && str_starts_with($digits, '55')) ? substr($digits, 2) : $digits;
+                $with55 = (strlen($without55) === 10 || strlen($without55) === 11) ? ('55' . $without55) : $digits;
+                $candidates = array_values(array_unique(array_filter([$digits, $without55, $with55])));
+                $user = User::whereIn('whatsapp', $candidates)
+                    ->orWhereIn('phone', $candidates)
                     ->first();
                 if ($user) {
                     $userId = $user->id;

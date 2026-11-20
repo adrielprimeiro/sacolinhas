@@ -301,6 +301,28 @@ class EvolutionApiService
     }
 
     /**
+     * Normaliza telefone brasileiro garantindo o DDI 55 corretamente — inclusive para DDD 55 (interior do RS)!
+     * - 10 ou 11 dígitos (DDD + número): sempre adiciona '55' (ex: 55991810652 -> 5555991810652)
+     * - 12 ou 13 dígitos começando com 55: já possui DDI (ex: 5548984136870 ou 5555991810652)
+     */
+    public static function normalizeBrazilPhone(string $raw): string
+    {
+        $digits = preg_replace('/\D+/', '', explode('@', $raw)[0] ?? '');
+        if ($digits === '') {
+            return '';
+        }
+
+        // Remove zeros à esquerda (ex: 055991810652 -> 55991810652)
+        $digits = ltrim($digits, '0');
+
+        if (strlen($digits) === 10 || strlen($digits) === 11) {
+            return '55' . $digits;
+        }
+
+        return $digits;
+    }
+
+    /**
      * Envia mensagem de texto
      */
     public function sendText(string $to, string $text, int $delay = 1500): array
@@ -313,11 +335,7 @@ class EvolutionApiService
             }
         }
 
-        $digits = preg_replace('/\D+/', '', explode('@', $target)[0] ?? '');
-        if ($digits && !str_starts_with($digits, '55')) {
-            $digits = '55' . $digits;
-        }
-
+        $digits = self::normalizeBrazilPhone($target);
         $number = $digits ?: $target;
 
         try {
@@ -383,11 +401,7 @@ class EvolutionApiService
             }
         }
 
-        $digits = preg_replace('/\D+/', '', explode('@', $target)[0] ?? '');
-        if ($digits && !str_starts_with($digits, '55')) {
-            $digits = '55' . $digits;
-        }
-
+        $digits = self::normalizeBrazilPhone($target);
         $number = $digits ?: $target;
 
         // Evolution API v2 aceita URL ou base64 puro (sem prefixo data:...;base64,)

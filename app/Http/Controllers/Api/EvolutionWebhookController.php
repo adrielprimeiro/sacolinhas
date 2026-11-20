@@ -231,10 +231,11 @@ class EvolutionWebhookController extends Controller
 
     protected function findUserByDigits(string $digits): ?User
     {
-        $without55 = str_starts_with($digits, '55') ? substr($digits, 2) : $digits;
-        $with55 = '55' . $without55;
+        $digits = ltrim(preg_replace('/\D+/', '', $digits), '0');
+        $without55 = (strlen($digits) >= 12 && str_starts_with($digits, '55')) ? substr($digits, 2) : $digits;
+        $with55 = (strlen($without55) === 10 || strlen($without55) === 11) ? ('55' . $without55) : $digits;
 
-        $candidates = array_unique([$digits, $without55, $with55]);
+        $candidates = array_values(array_unique(array_filter([$digits, $without55, $with55])));
 
         return User::whereIn('whatsapp', $candidates)
             ->orWhereIn('phone', $candidates)
