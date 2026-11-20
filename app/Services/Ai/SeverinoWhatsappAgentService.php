@@ -39,22 +39,50 @@ class SeverinoWhatsappAgentService
         $this->geminiApiKey = (string) (config('services.gemini.paid_api_key') ?: (config('services.gemini.api_key') ?: env('GEMINI_API_KEY', '')));
     }
 
+    protected static function configFilePath(): string
+    {
+        return storage_path('app/severino_whatsapp_config.json');
+    }
+
+    protected static function supervisionFilePath(): string
+    {
+        return storage_path('app/severino_supervision_modes.json');
+    }
+
     /**
      * Obtém a configuração global do fluxo Severino WhatsApp na Live
+     * (Persistido em arquivo no storage para NUNCA ser apagado por php artisan optimize:clear / cache:clear)
      */
     public static function getConfig(): array
     {
-        $saved = Cache::get('severino_live_whatsapp_config', []);
+        $saved = [];
+        $path = self::configFilePath();
+        if (is_file($path)) {
+            $raw = @file_get_contents($path);
+            if ($raw) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded)) {
+                    $saved = $decoded;
+                }
+            }
+        }
+        if (empty($saved)) {
+            $cached = Cache::get('severino_live_whatsapp_config', []);
+            if (is_array($cached) && !empty($cached)) {
+                $saved = $cached;
+            }
+        }
+
         return [
             // 'test' = envia para o telefone de teste | 'live' = envia para o cliente real | 'off' = desativado no clique
             'mode' => $saved['mode'] ?? 'test',
             'test_phone' => $saved['test_phone'] ?? '5548984136870',
-            'auto_reply' => isset($saved['auto_reply']) ? (bool) $saved['auto_reply'] : true,
+            'auto_reply' => array_key_exists('auto_reply', $saved) ? (bool) $saved['auto_reply'] : false,
         ];
     }
 
     /**
-     * Salva a configuração global do fluxo Severino WhatsApp na Live
+     * Salva a configuração global do fluxo Severino WhatsApp na Live (em arquivo persistente + cache)
      */
     public static function saveConfig(array $data): array
     {
@@ -62,8 +90,11 @@ class SeverinoWhatsappAgentService
         $updated = [
             'mode' => in_array($data['mode'] ?? '', ['test', 'live', 'off']) ? $data['mode'] : $current['mode'],
             'test_phone' => !empty($data['test_phone']) ? preg_replace('/\D+/', '', (string) $data['test_phone']) : $current['test_phone'],
-            'auto_reply' => isset($data['auto_reply']) ? (bool) $data['auto_reply'] : $current['auto_reply'],
+            'auto_reply' => array_key_exists('auto_reply', $data) ? (bool) $data['auto_reply'] : $current['auto_reply'],
         ];
+
+        $path = self::configFilePath();
+        @file_put_contents($path, json_encode($updated, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
         Cache::forever('severino_live_whatsapp_config', $updated);
         return $updated;
     }
@@ -99,22 +130,47 @@ class SeverinoWhatsappAgentService
         return 'severino_sup_jid_' . md5((string) $remoteJid);
     }
 
+    protected static function loadSupervisionMap(): array
+    {
+        $path = self::supervisionFilePath();
+        if (!is_file($path)) {
+            return [];
+        }
+        $decoded = json_decode((string) @file_get_contents($path), true);
+        return is_array($decoded) ? $decoded : [];
+    }
+
     /**
-     * Retorna 'severino' ou 'human' para a conversa
+     * Retorna 'severino' ou 'human' para a conversa (imune a cache:clear)
      */
     public static function getSupervisionMode(?string $remoteJid, ?int $userId = null): string
     {
         $key = self::getConvSupervisionKey($remoteJid, $userId);
+        $map = self::loadSupervisionMap();
+        if (isset($map[$key])) {
+            return $map[$key] === 'human' ? 'human' : 'severino';
+        }
+        if ($userId && isset($map['severino_sup_user_' . $userId])) {
+            return $map['severino_sup_user_' . $userId] === 'human' ? 'human' : 'severino';
+        }
         return Cache::get($key, 'severino');
     }
 
     /**
-     * Define 'severino' ou 'human' para a conversa
+     * Define 'severino' ou 'human' para a conversa (persistido em arquivo + cache)
      */
     public static function setSupervisionMode(?string $remoteJid, ?int $userId, string $mode, ?string $reason = null): void
     {
         $mode = ($mode === 'human') ? 'human' : 'severino';
         $key = self::getConvSupervisionKey($remoteJid, $userId);
+
+        $map = self::loadSupervisionMap();
+        $map[$key] = $mode;
+        if ($userId) {
+            $map['severino_sup_user_' . $userId] = $mode;
+        }
+        @file_put_contents(self::supervisionFilePath(), json_encode($map, JSON_UNESCAPED_UNICODE), LOCK_EX);
+
         Cache::forever($key, $mode);
 
         if ($userId) {

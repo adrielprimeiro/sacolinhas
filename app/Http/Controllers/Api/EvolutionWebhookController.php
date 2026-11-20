@@ -75,12 +75,23 @@ class EvolutionWebhookController extends Controller
         }
 
         $originalJid = $remoteJid;
+        $altJid = $key['remoteJidAlt'] ?? ($key['senderPn'] ?? null);
         if (str_contains($remoteJid, '@lid')) {
-            $resolved = app(\App\Services\Whatsapp\EvolutionApiService::class)->resolveLidToPhoneNumber($remoteJid);
-            if ($resolved) {
-                $remoteJid = $resolved;
-                // Unifica mensagens antigas que vieram com o @lid cru
+            if (is_string($altJid) && str_ends_with($altJid, '@s.whatsapp.net')) {
+                $remoteJid = $altJid;
+                $altPhone = preg_replace('/\D+/', '', explode('@', $altJid)[0] ?? '');
+                \App\Models\EvolutionContactMapping::updateOrCreate(
+                    ['lid' => $originalJid],
+                    ['phone' => $altPhone, 'remote_jid' => $altJid, 'name' => $pushName]
+                );
                 EvolutionMessage::where('remote_jid', $originalJid)->update(['remote_jid' => $remoteJid]);
+            } else {
+                $resolved = app(\App\Services\Whatsapp\EvolutionApiService::class)->resolveLidToPhoneNumber($remoteJid, $pushName);
+                if ($resolved) {
+                    $remoteJid = $resolved;
+                    // Unifica mensagens antigas que vieram com o @lid cru
+                    EvolutionMessage::where('remote_jid', $originalJid)->update(['remote_jid' => $remoteJid]);
+                }
             }
         }
 
@@ -88,7 +99,7 @@ class EvolutionWebhookController extends Controller
 
         // Tenta achar usuário cadastrado pelo WhatsApp
         $user = null;
-        if (strlen($digits) >= 8) {
+        if (!str_contains($remoteJid, '@lid') && strlen($digits) >= 8) {
             $user = $this->findUserByDigits($digits);
         }
 
@@ -99,12 +110,15 @@ class EvolutionWebhookController extends Controller
                 ?: \App\Models\EvolutionContactMapping::where('remote_jid', $remoteJid)->orWhere('phone', $digits)->value('name')
                 ?: EvolutionMessage::where('remote_jid', $remoteJid)->where('direction', 'inbound')->whereNotNull('push_name')->latest('id')->value('push_name');
         } else {
-            // Mensagem recebida do contato: salva/atualiza mapeamento com o nome do cliente
-            if ($pushName && $remoteJid) {
+            // Mensagem recebida do contato: salva/atualiza mapeamento com o nome do cliente (apenas se já for @s.whatsapp.net)
+            if ($pushName && $remoteJid && !str_contains($remoteJid, '@lid')) {
                 \App\Models\EvolutionContactMapping::updateOrCreate(
                     ['remote_jid' => $remoteJid],
-                    ['name' => $pushName, 'phone' => $digits]
+                    ['name' => $user?->name ?: $pushName, 'phone' => $digits]
                 );
+            }
+            if ($user?->name) {
+                $pushName = $user->name;
             }
         }
 

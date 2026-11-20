@@ -114,9 +114,10 @@ class EvolutionApiService
     }
 
     /**
-     * Mapeia um LID do WhatsApp (@lid) para o número real (@s.whatsapp.net)
+     * Mapeia um LID do WhatsApp (@lid) para o número real (@s.whatsapp.net) de forma SEGURA.
+     * NUNCA chuta um contato aleatório da agenda só pelo primeiro nome!
      */
-    public function resolveLidToPhoneNumber(string $remoteJid): ?string
+    public function resolveLidToPhoneNumber(string $remoteJid, ?string $fallbackPushName = null): ?string
     {
         if (!str_contains($remoteJid, '@lid')) {
             return $remoteJid;
@@ -124,88 +125,148 @@ class EvolutionApiService
 
         // 1) Checa primeiro no banco persistente
         $existing = \App\Models\EvolutionContactMapping::where('lid', $remoteJid)->first();
-        if ($existing && $existing->remote_jid) {
+        if ($existing && $existing->remote_jid && str_ends_with($existing->remote_jid, '@s.whatsapp.net')) {
             return $existing->remote_jid;
         }
 
-        return \Illuminate\Support\Facades\Cache::remember('evolution_lid_map_' . $remoteJid, now()->addHours(24), function () use ($remoteJid) {
-            try {
-                $resp = $this->client()->post("{$this->baseUrl}/chat/findContacts/{$this->instanceName}", []);
-                if (!$resp->successful()) {
-                    return null;
-                }
+        $cacheKey = 'evolution_lid_map_v2_' . $remoteJid;
+        $cached = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        if (is_string($cached) && str_ends_with($cached, '@s.whatsapp.net')) {
+            return $cached;
+        }
 
-                $contacts = $resp->json() ?: [];
-                $target = null;
-                foreach ($contacts as $c) {
-                    if (($c['remoteJid'] ?? '') === $remoteJid) {
-                        $target = $c;
-                        break;
-                    }
-                }
-                if (!$target) {
-                    return null;
-                }
+        try {
+            $resp = $this->client()->post("{$this->baseUrl}/chat/findContacts/{$this->instanceName}", []);
+            $contacts = $resp->successful() ? ($resp->json() ?: []) : [];
 
-                $targetPic = $target['profilePicUrl'] ?? null;
-                $targetName = $target['pushName'] ?? null;
-                $matchedJid = null;
-
-                // 1) Match por PATH da profilePicUrl (sem os parâmetros da query string assinada)
-                if ($targetPic) {
-                    $targetPath = parse_url($targetPic, PHP_URL_PATH);
-                    if ($targetPath && strlen($targetPath) > 10) {
-                        foreach ($contacts as $c) {
-                            $jid = $c['remoteJid'] ?? '';
-                            if (str_ends_with($jid, '@s.whatsapp.net')) {
-                                $cPath = parse_url($c['profilePicUrl'] ?? '', PHP_URL_PATH);
-                                if ($cPath && $cPath === $targetPath) {
-                                    $matchedJid = $jid;
-                                    break;
-                                }
-                            }
-                        }
-                    }
+            $target = null;
+            foreach ($contacts as $c) {
+                if (($c['remoteJid'] ?? '') === $remoteJid) {
+                    $target = $c;
+                    break;
                 }
+            }
 
-                // 2) Match por pushName (nome do perfil no WhatsApp)
-                if (!$matchedJid && $targetName) {
-                    $targetFirst = explode(' ', trim($targetName))[0] ?? '';
+            $targetPic = $target['profilePicUrl'] ?? null;
+            $targetName = trim((string) (($target['pushName'] ?? '') ?: ($fallbackPushName ?? '')));
+            $matchedJid = null;
+
+            // 1) Match por PATH da profilePicUrl (identificador único real no WhatsApp)
+            if ($targetPic && !empty($contacts)) {
+                $targetPath = parse_url($targetPic, PHP_URL_PATH);
+                if ($targetPath && strlen($targetPath) > 10) {
                     foreach ($contacts as $c) {
                         $jid = $c['remoteJid'] ?? '';
                         if (str_ends_with($jid, '@s.whatsapp.net')) {
-                            $name = $c['pushName'] ?? '';
-                            if (strcasecmp($name, $targetName) === 0) {
-                                $matchedJid = $jid;
-                                break;
-                            }
-                            if (strlen($targetFirst) >= 4 && str_starts_with(strtolower($name), strtolower($targetFirst))) {
+                            $cPath = parse_url($c['profilePicUrl'] ?? '', PHP_URL_PATH);
+                            if ($cPath && $cPath === $targetPath) {
                                 $matchedJid = $jid;
                                 break;
                             }
                         }
                     }
                 }
-
-                if ($matchedJid) {
-                    $phone = preg_replace('/\D+/', '', explode('@', $matchedJid)[0] ?? '');
-                    \App\Models\EvolutionContactMapping::updateOrCreate(
-                        ['lid' => $remoteJid],
-                        [
-                            'phone' => $phone,
-                            'remote_jid' => $matchedJid,
-                            'name' => $targetName,
-                        ]
-                    );
-                    return $matchedJid;
-                }
-
-                return null;
-            } catch (\Throwable $e) {
-                Log::warning('Error resolving LID to phone', ['lid' => $remoteJid, 'error' => $e->getMessage()]);
-                return null;
             }
-        });
+
+            // 2) Match seguro por CONVERSA OUTBOUND RECENTE (últimas 24h em evolution_messages):
+            //    Ex: enviamos peças da live para "Aline Freitas de Oliveira" (5519...) e minutos depois chega resposta de @lid com pushName "Aline".
+            //    Só aceita se houver match ÚNICO entre as pessoas contatadas recentemente!
+            if (!$matchedJid && $targetName !== '') {
+                $normTarget = mb_strtolower($targetName);
+                $targetFirst = explode(' ', $normTarget)[0] ?? '';
+
+                if (mb_strlen($targetFirst) >= 3) {
+                    $recentOutbound = \App\Models\EvolutionMessage::where('direction', 'outbound')
+                        ->where('status', '!=', 'failed')
+                        ->where('remote_jid', 'like', '%@s.whatsapp.net')
+                        ->where('created_at', '>=', now()->subHours(24))
+                        ->orderByDesc('id')
+                        ->get(['remote_jid', 'user_id', 'push_name', 'created_at']);
+
+                    $candidates = [];
+                    $veryRecentCandidates = [];
+                    $threeMinAgo = now()->subMinutes(3);
+
+                    $userIds = $recentOutbound->pluck('user_id')->filter()->unique()->values()->toArray();
+                    $usersById = !empty($userIds)
+                        ? \App\Models\User::whereIn('id', $userIds)->get(['id', 'name', 'apelido'])->keyBy('id')
+                        : collect();
+
+                    foreach ($recentOutbound as $row) {
+                        $jid = (string) $row->remote_jid;
+                        if (isset($candidates[$jid])) {
+                            continue;
+                        }
+                        $u = $row->user_id ? $usersById->get($row->user_id) : null;
+                        $namesToCheck = array_filter([
+                            trim((string) ($row->push_name ?? '')),
+                            trim((string) ($u?->name ?? '')),
+                            trim((string) ($u?->apelido ?? '')),
+                        ]);
+
+                        $matchedThis = false;
+                        foreach ($namesToCheck as $candName) {
+                            $candLower = mb_strtolower($candName);
+                            $candFirst = explode(' ', $candLower)[0] ?? '';
+                            if ($candLower === $normTarget || $candFirst === $targetFirst || str_starts_with($candLower, $normTarget . ' ')) {
+                                $matchedThis = true;
+                                break;
+                            }
+                        }
+
+                        if ($matchedThis) {
+                            $candidates[$jid] = $row;
+                            if ($row->created_at && $row->created_at->gte($threeMinAgo)) {
+                                $veryRecentCandidates[$jid] = $row;
+                            }
+                        }
+                    }
+
+                    if (count($candidates) === 1) {
+                        $matchedJid = array_key_first($candidates);
+                    } elseif (count($veryRecentCandidates) === 1) {
+                        $matchedJid = array_key_first($veryRecentCandidates);
+                    }
+                }
+            }
+
+            // 3) Match na agenda completa APENAS se o nome tiver sobrenome (>= 2 palavras) e for EXATO e ÚNICO!
+            //    (Proibido chutar por primeiro nome em toda a agenda!)
+            if (!$matchedJid && $targetName !== '' && str_contains($targetName, ' ') && !empty($contacts)) {
+                $exactMatches = [];
+                foreach ($contacts as $c) {
+                    $jid = $c['remoteJid'] ?? '';
+                    if (str_ends_with($jid, '@s.whatsapp.net')) {
+                        $name = trim((string) ($c['pushName'] ?? ''));
+                        if ($name !== '' && strcasecmp($name, $targetName) === 0) {
+                            $exactMatches[$jid] = true;
+                        }
+                    }
+                }
+                if (count($exactMatches) === 1) {
+                    $matchedJid = array_key_first($exactMatches);
+                }
+            }
+
+            if ($matchedJid) {
+                $phone = preg_replace('/\D+/', '', explode('@', $matchedJid)[0] ?? '');
+                \App\Models\EvolutionContactMapping::updateOrCreate(
+                    ['lid' => $remoteJid],
+                    [
+                        'phone' => $phone,
+                        'remote_jid' => $matchedJid,
+                        'name' => $targetName ?: null,
+                    ]
+                );
+                \Illuminate\Support\Facades\Cache::put($cacheKey, $matchedJid, now()->addHours(24));
+                return $matchedJid;
+            }
+
+            return null;
+        } catch (\Throwable $e) {
+            Log::warning('Error resolving LID to phone', ['lid' => $remoteJid, 'error' => $e->getMessage()]);
+            return null;
+        }
     }
 
     /**
