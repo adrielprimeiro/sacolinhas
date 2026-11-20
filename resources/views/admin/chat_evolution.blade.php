@@ -320,7 +320,7 @@
 				if (data.success) {
 					if (inputSim) inputSim.value = '';
 					updateSupervisionButtonUI('severino');
-					await loadMessages();
+					await loadMessages(true);
 					await loadConversations();
 				} else {
 					alert('Erro ao simular resposta.');
@@ -381,11 +381,15 @@
 				const res = await fetch('/admin/chat-evolution/api/conversations');
 				const convs = await res.json();
 				const list = document.getElementById('conversationList');
+				const prevListScroll = list.scrollTop;
 
 				if (!convs || !convs.length) {
 					list.innerHTML = '<div class="text-center p-4 text-muted">Nenhuma conversa encontrada.</div>';
 					return;
 				}
+
+				const searchInput = document.getElementById('searchContact');
+				const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
 				list.innerHTML = convs.map(c => {
 					const isSelected = (activeConv.remoteJid && activeConv.remoteJid === c.remote_jid) 
@@ -393,6 +397,7 @@
 					const name = c.display_name || 'Contato';
 					const initial = name.charAt(0).toUpperCase() || '?';
 					const phone = c.display_phone || '';
+					const matchesSearch = !searchTerm || name.toLowerCase().includes(searchTerm) || phone.toLowerCase().includes(searchTerm);
 					const time = c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
 					const unread = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : '';
 					const supMode = c.supervision_mode || 'severino';
@@ -406,6 +411,7 @@
 
 					return `
 						<div class="conversation-item ${isSelected ? 'active' : ''}" 
+							 style="display:${matchesSearch ? 'flex' : 'none'};"
 							 data-user-id="${c.user_id || ''}" 
 							 data-remote-jid="${escapeHtml(c.remote_jid || '')}" 
 							 data-name="${escapeHtml(name)}" 
@@ -430,6 +436,8 @@
 						</div>
 					`;
 				}).join('');
+
+				list.scrollTop = prevListScroll;
 			} catch (e) {
 				console.error(e);
 			}
@@ -513,9 +521,12 @@
 			simArea.style.display = (simArea.style.display === 'none' || simArea.style.display === '') ? 'block' : 'none';
 		}
 
+		let lastMessagesRenderSignature = '';
+
 		// Seleciona conversa
 		async function selectConversation(userId, remoteJid, name, phone, supMode = 'severino') {
 			activeConv = { userId, remoteJid, name, phone, supervisionMode: supMode };
+			lastMessagesRenderSignature = '';
 			document.getElementById('currentUserName').innerText = name;
 			document.getElementById('currentUserPhone').innerText = phone;
 			document.getElementById('chatInputArea').style.display = 'flex';
@@ -525,13 +536,14 @@
 			if (simArea) simArea.style.display = 'none';
 			updateSupervisionButtonUI(supMode);
 
-			loadMessages();
+			loadMessages(true);
 			loadConversations();
 		}
 
-		// Carrega mensagens
-		async function loadMessages() {
+		// Carrega mensagens (preserva a posição do scroll quando o usuário sobe para ler mensagens antigas)
+		async function loadMessages(forceScrollToBottom = false) {
 			if (!activeConv.remoteJid && !activeConv.userId) return;
+			const reqConvKey = `${activeConv.remoteJid || ''}|${activeConv.userId || ''}`;
 			try {
 				const params = new URLSearchParams();
 				if (activeConv.remoteJid) params.append('remote_jid', activeConv.remoteJid);
@@ -539,12 +551,33 @@
 
 				const res = await fetch(`/admin/chat-evolution/api/messages?${params.toString()}`);
 				const msgs = await res.json();
+
+				// Ignora resposta atrasada caso o usuário já tenha trocado de conversa
+				const currentConvKey = `${activeConv.remoteJid || ''}|${activeConv.userId || ''}`;
+				if (reqConvKey !== currentConvKey) return;
+
 				const container = document.getElementById('messagesContainer');
 
 				if (!msgs || !msgs.length) {
-					container.innerHTML = '<div class="text-center my-auto text-muted"><p>Nenhuma mensagem nesta conversa ainda.</p></div>';
+					const emptySig = `${reqConvKey}:empty`;
+					if (lastMessagesRenderSignature !== emptySig) {
+						lastMessagesRenderSignature = emptySig;
+						container.innerHTML = '<div class="text-center my-auto text-muted"><p>Nenhuma mensagem nesta conversa ainda.</p></div>';
+					}
 					return;
 				}
+
+				const renderSig = reqConvKey + ':' + msgs.map(m => `${m.id}_${m.status || ''}`).join(',');
+				if (renderSig === lastMessagesRenderSignature && !forceScrollToBottom) {
+					// Nada mudou: não re-renderiza nem mexe no scroll
+					return;
+				}
+
+				const prevScrollTop = container.scrollTop;
+				const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+				const wasNearBottom = distanceFromBottom <= 80;
+
+				lastMessagesRenderSignature = renderSig;
 
 				container.innerHTML = msgs.map(m => {
 					const isSeverino = m.from === 'severino';
@@ -569,7 +602,11 @@
 					`;
 				}).join('');
 
-				container.scrollTop = container.scrollHeight;
+				if (forceScrollToBottom || wasNearBottom) {
+					container.scrollTop = container.scrollHeight;
+				} else {
+					container.scrollTop = prevScrollTop;
+				}
 			} catch (e) {
 				console.error(e);
 			}
@@ -607,7 +644,7 @@
 					input.value = '';
 					fileInput.value = '';
 					updateSupervisionButtonUI('human');
-					loadMessages();
+					loadMessages(true);
 					loadConversations();
 				} else {
 					alert('Erro ao enviar: ' + (data.error || 'Verifique a conexão do WhatsApp'));
