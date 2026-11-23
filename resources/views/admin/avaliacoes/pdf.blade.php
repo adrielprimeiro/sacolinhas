@@ -308,6 +308,8 @@
                             <strong style="color: #047857; font-size: 11px;">
                                 R$ {{ number_format($precoSacolinha, 2, ',', '.') }}
                             </strong>
+                        @elseif ($item->item && $item->item->status === 'devolvido')
+                            <span style="color: #92400e; font-weight: bold; font-size: 9px; background-color: #fef3c7; padding: 2px 6px; border-radius: 4px; border: 1px solid #fde68a;">Devolvido</span>
                         @else
                             <span style="color: #94a3b8; font-style: italic; font-size: 9px;">Em Estoque</span>
                         @endif
@@ -320,7 +322,10 @@
         {{-- QUADRADO FINAL DE TOTAIS DO PARCEIRO --}}
         @php
             $qtdTotal = $avaliacao->items->count();
-            $qtdEstoque = max(0, $qtdTotal - $qtdVendidas);
+            $qtdDevolvidas = $avaliacao->items->filter(function($it) {
+                return $it->item && $it->item->status === 'devolvido';
+            })->count();
+            $qtdEstoque = max(0, $qtdTotal - $qtdVendidas - $qtdDevolvidas);
             $comissaoManiaVendas = $totalVendaSacolinhas * ($comissaoPct / 100.00);
             $taxaCadTotal = (float) ($avaliacao->taxa_cadastro_peca ?: 0.00) * $qtdTotal;
             $repasseFinalVendas = max(0, $totalVendaSacolinhas - $comissaoManiaVendas);
@@ -343,6 +348,12 @@
                                 <td style="color: #64748b; font-weight: 600; padding: 2px 0;">Peças em Estoque:</td>
                                 <td style="text-align: right; font-weight: 700; color: #334155; padding: 2px 0;">{{ $qtdEstoque }} peças</td>
                             </tr>
+                            @if($qtdDevolvidas > 0)
+                            <tr>
+                                <td style="color: #92400e; font-weight: 600; padding: 2px 0;">Peças Devolvidas:</td>
+                                <td style="text-align: right; font-weight: 700; color: #92400e; padding: 2px 0;">{{ $qtdDevolvidas }} peças</td>
+                            </tr>
+                            @endif
                             <tr>
                                 <td style="color: #374151; font-weight: 600; padding: 4px 0 0 0; border-top: 1px solid #e2e8f0;">Status do Lote:</td>
                                 <td style="text-align: right; font-weight: 700; color: #312e81; padding: 4px 0 0 0; border-top: 1px solid #e2e8f0;">{{ ucfirst($avaliacao->status_label ?? $avaliacao->status) }}</td>

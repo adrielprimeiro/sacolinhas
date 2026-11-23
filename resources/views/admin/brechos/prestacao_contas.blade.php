@@ -330,6 +330,10 @@
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
                                         <i class="fas fa-shopping-bag mr-1"></i> Na Sacolinha
                                     </span>
+                                @elseif($item->status === 'devolvido')
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                        <i class="fas fa-undo-alt mr-1 text-amber-700"></i> Devolvido
+                                    </span>
                                 @elseif($item->status === 'disponivel' || $item->status === 'estoque')
                                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
                                         <i class="fas fa-check-circle mr-1"></i> Em Estoque

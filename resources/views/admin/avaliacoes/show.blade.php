@@ -259,8 +259,13 @@
                                 <p class="text-sm font-semibold text-gray-900 leading-tight">
                                     {{ $item->nome }}
                                 </p>
-                                <p class="text-[10px] text-gray-400 font-mono mt-0.5">
+                                <p class="text-[10px] text-gray-400 font-mono mt-0.5 flex items-center gap-1.5">
                                     <span class="font-bold">{{ $itemData['codigo'] }}</span>
+                                    @if($item->item && $item->item->status === 'devolvido')
+                                        <span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                            <i class="fas fa-undo-alt text-[9px] text-amber-700"></i> Devolvido
+                                        </span>
+                                    @endif
                                 </p>
                             </td>
                             <td class="px-4 py-3 text-xs text-gray-600 capitalize" @click="openModal({{ $item->id }}, '{{ addslashes($item->nome) }}', '{{ addslashes($item->cor) }}', '{{ addslashes($item->tamanho) }}', '{{ $itemData['codigo'] }}')">
