@@ -1207,15 +1207,16 @@ class AvaliacaoController extends Controller
         $valorTotal = $itensParaDevolver->sum('preco');
         $parceiroNome = $avaliacao->user ? $avaliacao->user->name : ($avaliacao->parceiro ? $avaliacao->parceiro->nome : 'Parceiro');
 
-        DB::transaction(function () use ($itensParaDevolver, $parceiroNome, $avaliacao) {
+        DB::transaction(function () use ($itensParaDevolver, $parceiroNome, $avaliacao, $totalDevolvido) {
             $dataDevolucao = now();
             foreach ($itensParaDevolver as $item) {
                 $item->status = 'devolvido';
                 $item->localizacao = null; // Libera araras e prateleiras físicas
-                $obsOriginal = $item->observacao ?: '';
-                $item->observacao = trim($obsOriginal . " | Devolvido ao parceiro {$parceiroNome} (Lote #{$avaliacao->id}) em {$dataDevolucao->format('d/m/Y H:i')}", " |");
                 $item->save();
             }
+
+            $avaliacao->observacoes = trim(($avaliacao->observacoes ?: '') . " | Baixa de {$totalDevolvido} peças não vendidas devolvidas ao parceiro {$parceiroNome} em " . $dataDevolucao->format('d/m/Y H:i'), " |");
+            $avaliacao->save();
         });
 
         return redirect()->back()->with('success', "Baixa realizada com sucesso! {$totalDevolvido} peças não vendidas (R$ " . number_format($valorTotal, 2, ',', '.') . ") foram marcadas como Devolvidas ao parceiro {$parceiroNome} e retiradas do estoque.");

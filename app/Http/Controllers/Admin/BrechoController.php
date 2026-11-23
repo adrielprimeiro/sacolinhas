@@ -770,8 +770,6 @@ class BrechoController extends Controller
             foreach ($itensParaDevolver as $item) {
                 $item->status = 'devolvido';
                 $item->localizacao = null; // Libera araras e prateleiras físicas
-                $obsOriginal = $item->observacao ?: '';
-                $item->observacao = trim($obsOriginal . " | Devolvido ao parceiro {$brecho->nome} em {$dataDevolucao->format('d/m/Y H:i')}", " |");
                 $item->save();
             }
         });
