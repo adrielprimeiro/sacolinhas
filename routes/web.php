@@ -461,6 +461,7 @@ Route::middleware('auth')->group(function () {
         Route::get('avaliacoes/{avaliacao}/pdf', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'pdf'])->name('admin.avaliacoes.pdf');
         Route::post('avaliacoes/{avaliacao}/finalizar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'finalize'])->name('admin.avaliacoes.finalize');
         Route::post('avaliacoes/{avaliacao}/cancelar', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'cancel'])->name('admin.avaliacoes.cancel');
+        Route::post('avaliacoes/{avaliacao}/devolver-sobras', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'devolverSobras'])->name('admin.avaliacoes.devolver-sobras');
         Route::post('avaliacoes/{avaliacao}/enviar-whatsapp', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'sendWhatsappNotification'])->name('admin.avaliacoes.send-whatsapp');
         Route::put('avaliacoes/item/{id}/quick-update', [\App\Http\Controllers\Admin\AvaliacaoController::class, 'quickUpdateItem'])->name('admin.avaliacoes.quick-update-item');
         Route::resource('marcas', \App\Http\Controllers\Admin\MarcaController::class)->names([
@@ -1077,6 +1078,7 @@ Route::middleware(['auth', 'check.admin'])->prefix('admin')->name('admin.')->gro
     Route::get('brechos/{brecho}/prestacao-contas/pdf', [\App\Http\Controllers\Admin\BrechoController::class, 'prestacaoContasPdf'])->name('brechos.prestacao_contas_pdf');
     Route::post('brechos/{brecho}/repasse', [\App\Http\Controllers\Admin\BrechoController::class, 'registrarRepasse'])->name('brechos.registrar_repasse');
     Route::post('brechos/{brecho}/sincronizar-vendas', [\App\Http\Controllers\Admin\BrechoController::class, 'sincronizarVendasCarteira'])->name('brechos.sincronizar_vendas');
+    Route::post('brechos/{brecho}/devolver-sobras', [\App\Http\Controllers\Admin\BrechoController::class, 'devolverSobras'])->name('brechos.devolver_sobras');
 
     // Base de Conhecimento RAG (IA)
     Route::get('knowledge-base', [\App\Http\Controllers\AiAssistantController::class, 'adminKnowledgeBaseIndex'])->name('knowledge-base.index');

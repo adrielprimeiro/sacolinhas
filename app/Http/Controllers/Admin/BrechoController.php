@@ -216,6 +216,8 @@ class BrechoController extends Controller
                 });
         } elseif ($statusFiltro === 'vendido') {
             $queryItems->where('status', 'vendido');
+        } elseif ($statusFiltro === 'devolvido') {
+            $queryItems->where('status', 'devolvido');
         } elseif ($statusFiltro === 'em_sacolinha' || $statusFiltro === 'sacolinha') {
             $queryItems->where(function($q) {
                 $q->whereIn('status', ['sacolinha', 'em_sacolinha', 'solicitado na live'])
@@ -282,6 +284,7 @@ class BrechoController extends Controller
             return in_array($i->status, ['sacolinha', 'em_sacolinha', 'solicitado na live']) || in_array($i->id, $itemIdsEmSacolinha);
         })->count();
         $pecasVendidas = $allItems->where('status', 'vendido')->count();
+        $pecasDevolvidas = $allItems->where('status', 'devolvido')->count();
         $pecasEstoque = $allItems->filter(function($i) use ($itemIdsEmSacolinha) {
             return in_array($i->status, ['disponivel', 'estoque']) && !in_array($i->id, $itemIdsEmSacolinha);
         })->count();
@@ -337,6 +340,7 @@ class BrechoController extends Controller
             'pecasEstoque',
             'pecasSacolinha',
             'pecasVendidas',
+            'pecasDevolvidas',
             'valorBrutoTotal',
             'valorBrutoVendido',
             'valorRepasseVendido',
@@ -396,6 +400,8 @@ class BrechoController extends Controller
                 });
         } elseif ($statusFiltro === 'vendido') {
             $queryItems->where('status', 'vendido');
+        } elseif ($statusFiltro === 'devolvido') {
+            $queryItems->where('status', 'devolvido');
         } elseif ($statusFiltro === 'em_sacolinha' || $statusFiltro === 'sacolinha') {
             $queryItems->where(function($q) {
                 $q->whereIn('status', ['sacolinha', 'em_sacolinha', 'solicitado na live'])
@@ -461,6 +467,7 @@ class BrechoController extends Controller
             return in_array($i->status, ['sacolinha', 'em_sacolinha', 'solicitado na live']) || in_array($i->id, $itemIdsEmSacolinha);
         })->count();
         $pecasVendidas = $allItems->where('status', 'vendido')->count();
+        $pecasDevolvidas = $allItems->where('status', 'devolvido')->count();
         $pecasEstoque = $allItems->filter(function($i) use ($itemIdsEmSacolinha) {
             return in_array($i->status, ['disponivel', 'estoque']) && !in_array($i->id, $itemIdsEmSacolinha);
         })->count();
@@ -508,6 +515,7 @@ class BrechoController extends Controller
             'pecasEstoque',
             'pecasSacolinha',
             'pecasVendidas',
+            'pecasDevolvidas',
             'valorBrutoTotal',
             'valorBrutoVendido',
             'valorRepasseVendido',
@@ -723,5 +731,51 @@ class BrechoController extends Controller
 
         $fileName = 'relatorio-pecas-cadastradas-' . $dataInicio->format('Ymd') . '-a-' . $dataFim->format('Ymd') . '.pdf';
         return $pdf->stream($fileName);
+    }
+
+    /**
+     * Dá baixa em todas as peças não vendidas do parceiro, marcando-as como 'devolvido'
+     * e liberando a localização física do estoque da loja.
+     */
+    public function devolverSobras(Request $request, Brecho $brecho)
+    {
+        abort_if(!auth()->user() || auth()->user()->role !== 'admin_master', 403, 'Acesso restrito ao Master.');
+
+        $allItems = \App\Models\Item::where(function ($q) use ($brecho) {
+            $q->where('parceiro_id', $brecho->id);
+            if (!empty($brecho->prefixo_codigo)) {
+                $q->orWhere('codigo', 'like', $brecho->prefixo_codigo . '-%');
+            }
+        })->get(['id', 'codigo', 'nome_do_produto', 'preco', 'custo', 'status', 'localizacao', 'observacao']);
+
+        $itemIdsEmSacolinha = DB::table('sacolinhas')
+            ->whereIn('item_id', $allItems->pluck('id'))
+            ->where('status', '!=', 'pedido')
+            ->pluck('item_id')
+            ->toArray();
+
+        $itensParaDevolver = $allItems->filter(function($i) use ($itemIdsEmSacolinha) {
+            return in_array($i->status, ['disponivel', 'estoque']) && !in_array($i->id, $itemIdsEmSacolinha);
+        });
+
+        if ($itensParaDevolver->isEmpty()) {
+            return redirect()->back()->with('warning', 'Nenhuma peça disponível para devolução (todas já foram vendidas, estão em sacolinhas ativas ou já foram devolvidas).');
+        }
+
+        $totalDevolvido = $itensParaDevolver->count();
+        $valorTotal = $itensParaDevolver->sum('preco');
+
+        DB::transaction(function () use ($itensParaDevolver, $brecho) {
+            $dataDevolucao = now();
+            foreach ($itensParaDevolver as $item) {
+                $item->status = 'devolvido';
+                $item->localizacao = null; // Libera araras e prateleiras físicas
+                $obsOriginal = $item->observacao ?: '';
+                $item->observacao = trim($obsOriginal . " | Devolvido ao parceiro {$brecho->nome} em {$dataDevolucao->format('d/m/Y H:i')}", " |");
+                $item->save();
+            }
+        });
+
+        return redirect()->back()->with('success', "Baixa realizada com sucesso! {$totalDevolvido} peças não vendidas (R$ " . number_format($valorTotal, 2, ',', '.') . ") foram marcadas como Devolvidas ao parceiro {$brecho->nome} e retiradas do estoque.");
     }
 }

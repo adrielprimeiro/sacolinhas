@@ -379,28 +379,38 @@
                         <p class="text-3xl font-extrabold text-gray-800">
                             {{ ($estatisticas['diferenca_mes'] ?? 0) >= 0 ? '+' : '' }}{{ number_format($estatisticas['diferenca_mes'] ?? 0, 0, ',', '.') }}
                         </p>
-                        <span class="text-xs font-semibold text-gray-500">Diferença</span>
+                        <span class="text-xs font-bold text-gray-500" title="Giro real do estoque próprio da Minha Mania">Giro Estoque Mania</span>
                     </div>
 
                     <!-- Relatório de Movimentação do Mês Atual -->
                     <div class="mt-4 pt-3 border-t border-gray-100 space-y-2">
                         <p class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center justify-between">
                             <span><i class="fas fa-calendar-alt text-red-500 mr-1"></i> {{ ucfirst($estatisticas['nome_mes'] ?? 'Mês Atual') }}</span>
+                            <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Estoque Próprio</span>
                         </p>
                         
-                        <div class="flex items-center justify-between bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100">
-                            <span class="text-xs font-medium text-emerald-800 flex items-center">
-                                <i class="fas fa-arrow-down text-emerald-600 mr-1.5"></i> Entraram (Avaliação):
+                        <div class="flex items-center justify-between bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200">
+                            <span class="text-xs font-bold text-emerald-900 flex items-center">
+                                <i class="fas fa-arrow-down text-emerald-700 mr-1.5"></i> Entraram (Mania):
                             </span>
-                            <span class="text-sm font-bold text-emerald-700">+{{ number_format($estatisticas['entradas_mes_avaliacao'] ?? 0, 0, ',', '.') }} pcs</span>
+                            <span class="text-sm font-black text-emerald-800">+{{ number_format($estatisticas['entradas_mes_proprias'] ?? $estatisticas['entradas_mes_avaliacao'] ?? 0, 0, ',', '.') }} pcs</span>
                         </div>
 
-                        <div class="flex items-center justify-between bg-rose-50 px-3 py-2 rounded-lg border border-rose-100">
-                            <span class="text-xs font-medium text-rose-800 flex items-center">
-                                <i class="fas fa-arrow-up text-rose-600 mr-1.5"></i> Saíram (Pedidos):
+                        <div class="flex items-center justify-between bg-rose-50 px-3 py-2 rounded-lg border border-rose-200">
+                            <span class="text-xs font-bold text-rose-900 flex items-center">
+                                <i class="fas fa-arrow-up text-rose-700 mr-1.5"></i> Saíram (Pedidos):
                             </span>
-                            <span class="text-sm font-bold text-rose-700">-{{ number_format($estatisticas['saidas_mes_pedidos'] ?? 0, 0, ',', '.') }} pcs</span>
+                            <span class="text-sm font-black text-rose-800">-{{ number_format($estatisticas['saidas_mes_pedidos'] ?? 0, 0, ',', '.') }} pcs</span>
                         </div>
+
+                        @if(!empty($estatisticas['entradas_mes_parcerias']) && $estatisticas['entradas_mes_parcerias'] > 0)
+                        <div class="flex items-center justify-between bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-200 text-[11px]">
+                            <span class="text-indigo-950 font-bold flex items-center">
+                                <i class="fas fa-handshake text-indigo-700 mr-1.5"></i> Consignação (Parcerias):
+                            </span>
+                            <span class="font-black text-indigo-900">+{{ number_format($estatisticas['entradas_mes_parcerias'], 0, ',', '.') }} pcs <span class="text-[10px] font-bold text-indigo-700">({{ $estatisticas['vendas_mes_parcerias'] ?? 0 }} vendidas)</span></span>
+                        </div>
+                        @endif
                     </div>
                 </div>
             </div>

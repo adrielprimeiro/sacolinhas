@@ -33,6 +33,21 @@
                 >
                     <i class="fas fa-file-pdf text-white"></i> Relatório para Parceiro (PDF)
                 </a>
+
+                @if ($avaliacao->status === 'finalizada')
+                    @php
+                        $itemIdsDoLote = $avaliacao->items->pluck('item_id')->filter()->toArray();
+                        $pecasDisponiveisLote = !empty($itemIdsDoLote) ? \App\Models\Item::whereIn('id', $itemIdsDoLote)->whereIn('status', ['disponivel', 'estoque'])->count() : 0;
+                    @endphp
+                    @if($pecasDisponiveisLote > 0)
+                    <form action="{{ route('admin.avaliacoes.devolver-sobras', $avaliacao) }}" method="POST" class="inline" onsubmit="return confirm('ATENÇÃO: Confirma a devolução de {{ $pecasDisponiveisLote }} peça(s) não vendida(s) deste lote de parceria?\n\nElas serão marcadas como \'Devolvido\', retiradas das prateleiras e baixadas do estoque da loja.');">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-950 font-bold text-sm py-2 px-3.5 rounded-lg border-2 border-amber-600 transition shadow-sm" title="Dar baixa em todas as peças não vendidas deste lote e retirar do estoque físico">
+                            <i class="fas fa-undo-alt text-amber-700"></i> Devolver Sobras ({{ $pecasDisponiveisLote }} pcs)
+                        </button>
+                    </form>
+                    @endif
+                @endif
             @else
                 <a 
                     href="{{ route('admin.avaliacoes.pdf', $avaliacao) }}"

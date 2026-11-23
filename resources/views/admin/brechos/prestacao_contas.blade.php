@@ -70,6 +70,16 @@
                 <i class="fas fa-money-bill-wave mr-2 text-emerald-700"></i> Registrar Repasse (Pix)
             </button>
 
+            {{-- Devolver Peças Não Vendidas (Dar Baixa de Sobras) --}}
+            @if(($pecasEstoque ?? 0) > 0)
+            <form action="{{ route('brechos.devolver_sobras', $brecho) }}" method="POST" class="inline" onsubmit="return confirm('ATENÇÃO: Confirma a devolução e baixa de {{ $pecasEstoque }} peça(s) não vendida(s) para o parceiro {{ $brecho->nome }}?\n\nElas serão marcadas como \'Devolvido\', liberadas das prateleiras e retiradas do estoque da loja.');">
+                @csrf
+                <button type="submit" class="inline-flex items-center px-3.5 py-2 bg-amber-50 text-amber-950 hover:bg-amber-100 border-2 border-amber-600 rounded-lg text-xs font-black shadow-xs transition" title="Dar baixa em todas as peças não vendidas e retirar do estoque físico">
+                    <i class="fas fa-undo-alt mr-2 text-amber-700"></i> Devolver Sobras ({{ $pecasEstoque }} pcs)
+                </button>
+            </form>
+            @endif
+
             {{-- Imprimir / Gerar PDF --}}
             <a href="{{ route('admin.brechos.prestacao_contas_pdf', ['brecho' => $brecho->id, 'status' => request('status', 'todos'), 'q' => request('q')]) }}" 
                target="_blank"
@@ -251,6 +261,10 @@
                     <a href="{{ route('admin.brechos.prestacao_contas', ['brecho' => $brecho->id, 'status' => 'vendido']) }}" 
                        class="px-3 py-1.5 text-xs rounded-lg font-black border transition {{ $statusFiltro === 'vendido' ? 'bg-emerald-100 text-emerald-950 border-2 border-emerald-700 shadow-xs' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' }}">
                         Vendidas ({{ $pecasVendidas }})
+                    </a>
+                    <a href="{{ route('admin.brechos.prestacao_contas', ['brecho' => $brecho->id, 'status' => 'devolvido']) }}" 
+                       class="px-3 py-1.5 text-xs rounded-lg font-black border transition {{ $statusFiltro === 'devolvido' ? 'bg-gray-200 text-gray-950 border-2 border-gray-600 shadow-xs' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' }}">
+                        Devolvidas ({{ $pecasDevolvidas ?? 0 }})
                     </a>
                 </div>
 

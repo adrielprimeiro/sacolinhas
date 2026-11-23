@@ -114,10 +114,25 @@ class DashboardController extends Controller
             $fimMes    = Carbon::now()->endOfMonth()->toDateTimeString();
 
             $entradasMesAvaliacao = 0;
+            $entradasMesProprias = 0;
+            $entradasMesParcerias = 0;
+
             if (!$isParceiro) {
-                $entradasMesAvaliacao = (int) DB::table('avaliacao_items')
-                    ->whereBetween('created_at', [$inicioMes, $fimMes])
+                // Entradas de Avaliações Próprias da Mania
+                $entradasMesProprias = (int) DB::table('avaliacao_items')
+                    ->join('avaliacoes', 'avaliacoes.id', '=', 'avaliacao_items.avaliacao_id')
+                    ->whereBetween('avaliacao_items.created_at', [$inicioMes, $fimMes])
+                    ->where('avaliacoes.tipo_compra', '!=', 'parceria')
                     ->count();
+
+                // Entradas em Parceria / Consignação
+                $entradasMesParcerias = (int) DB::table('avaliacao_items')
+                    ->join('avaliacoes', 'avaliacoes.id', '=', 'avaliacao_items.avaliacao_id')
+                    ->whereBetween('avaliacao_items.created_at', [$inicioMes, $fimMes])
+                    ->where('avaliacoes.tipo_compra', '=', 'parceria')
+                    ->count();
+
+                $entradasMesAvaliacao = $entradasMesProprias + $entradasMesParcerias;
             }
 
             if ($entradasMesAvaliacao === 0) {
@@ -129,9 +144,11 @@ class DashboardController extends Controller
                         $q->where('brecho_id', 1)->orWhereNull('brecho_id');
                     });
                 }
-                $entradasMesAvaliacao = (int) $itensMesQuery->count();
+                $entradasMesProprias = (int) $itensMesQuery->count();
+                $entradasMesAvaliacao = $entradasMesProprias;
             }
 
+            // Vendas totais do mês
             $itensVendidosMesQuery = Item::where('status', 'vendido')
                 ->whereBetween('updated_at', [$inicioMes, $fimMes]);
             if ($brechoId) {
@@ -142,6 +159,16 @@ class DashboardController extends Controller
                 });
             }
             $itensVendidosMes = (int) $itensVendidosMesQuery->count();
+
+            // Vendas de Parceiros vs Próprios da Mania
+            $vendasMesParcerias = (int) Item::where('status', 'vendido')
+                ->whereBetween('updated_at', [$inicioMes, $fimMes])
+                ->where(function($q) {
+                    $q->whereNotNull('parceiro_id')->orWhereNotNull('origem_parceiro');
+                })
+                ->count();
+
+            $itensVendidosMesProprios = max(0, $itensVendidosMes - $vendasMesParcerias);
 
             $sacolasVendidasQuery = DB::table('sacolinhas')
                 ->whereIn('status', ['pedido', 'vendido', 'fechado'])
@@ -157,8 +184,12 @@ class DashboardController extends Controller
 
             $sacolasVendidasMes = (int) $sacolasVendidasQuery->sum('quantity');
 
+            // Total de saídas e saídas do estoque próprio
             $saidasMesPedidos = max($itensVendidosMes, $sacolasVendidasMes);
-            $diferencaMes = $entradasMesAvaliacao - $saidasMesPedidos;
+            $saidasMesProprios = max(0, $saidasMesPedidos - $vendasMesParcerias);
+
+            // Diferença foca no Estoque Próprio da Mania (Entradas Próprias - Saídas Próprias)
+            $diferencaMes = $entradasMesProprias - $saidasMesProprios;
 
             // 5. Faturamento por Clientes do Clube vs Outros no Mês Vigente & Pedidos Gerais
             $clubeUserIds = [];
@@ -230,16 +261,20 @@ class DashboardController extends Controller
             }
 
             $estatisticas = [
-                'total_clientes'         => $totalClientes,
-                'total_itens'            => $itensTotalQuery->count(),
-                'itens_disponiveis'      => $itensDispQuery->count(),
-                'itens_vendidos'         => $itensVendQuery->count(),
-                'itens_reservados'       => $itensResQuery->count(),
-                'itens_estoque'          => $estoqueInfo['quantidade'],
-                'entradas_mes_avaliacao' => $entradasMesAvaliacao,
-                'saidas_mes_pedidos'     => $saidasMesPedidos,
-                'diferenca_mes'          => $diferencaMes,
-                'nome_mes'               => Carbon::now()->locale('pt_BR')->translatedFormat('F/Y'),
+                'total_clientes'          => $totalClientes,
+                'total_itens'             => $itensTotalQuery->count(),
+                'itens_disponiveis'       => $itensDispQuery->count(),
+                'itens_vendidos'          => $itensVendQuery->count(),
+                'itens_reservados'        => $itensResQuery->count(),
+                'itens_estoque'           => $estoqueInfo['quantidade'],
+                'entradas_mes_avaliacao'  => $entradasMesProprias,
+                'entradas_mes_proprias'   => $entradasMesProprias,
+                'entradas_mes_parcerias'  => $entradasMesParcerias,
+                'vendas_mes_parcerias'    => $vendasMesParcerias,
+                'saidas_mes_pedidos'      => $saidasMesProprios,
+                'saidas_mes_total'        => $saidasMesPedidos,
+                'diferenca_mes'           => $diferencaMes,
+                'nome_mes'                => Carbon::now()->locale('pt_BR')->translatedFormat('F/Y'),
             ];
 
             // 7. Alertas de Vencimento

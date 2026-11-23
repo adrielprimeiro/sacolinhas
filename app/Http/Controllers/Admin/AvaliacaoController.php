@@ -1175,4 +1175,49 @@ class AvaliacaoController extends Controller
 
         return response()->json($results->take(30)->values());
     }
+
+    /**
+     * Dá baixa em todas as peças não vendidas de um lote de parceria/consignação,
+     * marcando-as como 'devolvido' e retirando-as do estoque da loja.
+     */
+    public function devolverSobras(Request $request, Avaliacao $avaliacao)
+    {
+        if ($avaliacao->tipo_compra !== 'parceria') {
+            return redirect()->back()->with('error', 'Apenas lotes em parceria / consignação podem ter sobras devolvidas ao parceiro.');
+        }
+
+        $itemIdsDoLote = $avaliacao->items()->pluck('item_id')->filter()->toArray();
+
+        $itemIdsEmSacolinha = DB::table('sacolinhas')
+            ->whereIn('status', ['aberta', 'em_aberto', 'pendente', 'aguardando', 'reservada'])
+            ->whereIn('item_id', $itemIdsDoLote)
+            ->pluck('item_id')
+            ->toArray();
+
+        $itensParaDevolver = Item::whereIn('id', $itemIdsDoLote)
+            ->whereIn('status', ['disponivel', 'estoque'])
+            ->whereNotIn('id', $itemIdsEmSacolinha)
+            ->get();
+
+        if ($itensParaDevolver->isEmpty()) {
+            return redirect()->back()->with('warning', 'Nenhuma peça disponível para devolução deste lote (todas já foram vendidas, estão em sacolinhas ativas ou já foram devolvidas).');
+        }
+
+        $totalDevolvido = $itensParaDevolver->count();
+        $valorTotal = $itensParaDevolver->sum('preco');
+        $parceiroNome = $avaliacao->user ? $avaliacao->user->name : ($avaliacao->parceiro ? $avaliacao->parceiro->nome : 'Parceiro');
+
+        DB::transaction(function () use ($itensParaDevolver, $parceiroNome, $avaliacao) {
+            $dataDevolucao = now();
+            foreach ($itensParaDevolver as $item) {
+                $item->status = 'devolvido';
+                $item->localizacao = null; // Libera araras e prateleiras físicas
+                $obsOriginal = $item->observacao ?: '';
+                $item->observacao = trim($obsOriginal . " | Devolvido ao parceiro {$parceiroNome} (Lote #{$avaliacao->id}) em {$dataDevolucao->format('d/m/Y H:i')}", " |");
+                $item->save();
+            }
+        });
+
+        return redirect()->back()->with('success', "Baixa realizada com sucesso! {$totalDevolvido} peças não vendidas (R$ " . number_format($valorTotal, 2, ',', '.') . ") foram marcadas como Devolvidas ao parceiro {$parceiroNome} e retiradas do estoque.");
+    }
 }
