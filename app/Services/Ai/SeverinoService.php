@@ -230,6 +230,14 @@ class SeverinoService
             "  2. USE SEMPRE A FERRAMENTA DEDICADA `listar_pagamentos_fornecedores`! Ela já filtra as despesas do mês, agrupa favorecidos, datas, categorias e ordena do maior para o menor valor.\n" .
             "  3. NUNCA tente inventar queries SQL manuais com nomes errados de tabela (a tabela é `classificacao_financeira` no singular e não categorias_financeiras) para listar fornecedores.\n" .
             "  4. Apresente os resultados em uma tabela Markdown organizada com Favorecido, Valor Pago, Data, Categoria e Descrição, com o totalizador dos pagamentos no final!\n" .
+            "- SUÍTE DE GESTÃO EXECUTIVA NATIVA (USE SEMPRE ESTAS FERRAMENTAS DEDICADAS):\n" .
+            "  1. Fluxo de Caixa / DRE / Lucro Operacional do Mês: Use `resumo_fluxo_caixa_mes`.\n" .
+            "  2. Contas a Receber / Receitas Previstas / Pendentes: Use `listar_contas_a_receber`.\n" .
+            "  3. Comparar Lives / Histórico de Vendas / Qual live vendeu mais: Use `comparativo_lives_recentes`.\n" .
+            "  4. Pedidos Prontos para Envio / Expedição / Aguardando Despacho: Use `resumo_envios_pendentes`.\n" .
+            "  5. Maiores Sacolinhas em Aberto / Quem está acumulando peças: Use `top_sacolinhas_acumuladas`.\n" .
+            "  6. Saúde do Clube Mania / Total de Assinantes / MRR / Inadimplência: Use `resumo_clube_mania`.\n" .
+            "  7. Desapegos do Mês / Compras de Peças / Payout a Pagar às Fornecedoras: Use `resumo_desapegos_periodo`.\n" .
             "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
             "- REGRAS PADRÃO DE CONCILIAÇÃO BANCÁRIA (`regras_conciliacao`):\n" .
             "  1. Ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`.\n" .
@@ -373,6 +381,113 @@ class SeverinoService
                                 "limite" => [
                                     "type" => "INTEGER",
                                     "description" => "Quantidade máxima de registros (padrão: 25, máximo: 50)."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "resumo_fluxo_caixa_mes",
+                        "description" => "Retorna o resumo do fluxo de caixa e DRE operacional do mês: total de receitas recebidas/realizadas, total de despesas pagas, resultado líquido (lucro/prejuízo operacional), comparativo com o mês anterior e o ranking das maiores categorias de despesas do período. Use SEMPRE que o usuário perguntar sobre fluxo de caixa, receitas vs despesas, faturamento x gastos, resultado do mês ou lucro operacional.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-11). Se vazio, usa o mês atual."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "listar_contas_a_receber",
+                        "description" => "Lista as contas a receber e receitas previstas ou pendentes do sistema (tabela `lancamentos` tipo receita). Retorna cliente/pagador, categoria, valor, data de vencimento/emissão, status (pendente, pago, todos) e totalizador. Use SEMPRE que perguntarem sobre contas a receber, receitas pendentes, pagamentos previstos ou recebíveis.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-11)."
+                                ],
+                                "cliente" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Nome do cliente ou pagador para filtrar."
+                                ],
+                                "status" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. 'pendente' (padrão), 'pago' ou 'todos'."
+                                ],
+                                "limite" => [
+                                    "type" => "INTEGER",
+                                    "description" => "Quantidade máxima de registros (padrão: 25, máximo: 50)."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "comparativo_lives_recentes",
+                        "description" => "Retorna um comparativo analítico entre as últimas N lives ou lives de um mês específico: faturamento bruto de cada uma, total de peças vendidas/bipadas, quantidade de clientes compradoras, ticket médio por cliente e a taxa de conversão em pedido formalizado (%). Use SEMPRE que o usuário pedir para comparar lives, ver histórico de lives, evolução das lives ou qual live teve melhor desempenho.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "quantidade_lives" => [
+                                    "type" => "INTEGER",
+                                    "description" => "Quantidade de últimas lives para comparar (padrão: 5, máximo: 15)."
+                                ],
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês no formato YYYY-MM para filtrar."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "resumo_envios_pendentes",
+                        "description" => "Lista os pedidos finalizados e pagos que estão aguardando separação, embalagem ou postagem/despacho (sem código de rastreamento ou com envio pendente). Traz número do pedido, cliente, cidade/UF, data do pedido, valor total e status de envio. Use SEMPRE que perguntarem sobre pedidos a enviar, fila de despacho, envios pendentes ou pacotes a postar.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "limite" => [
+                                    "type" => "INTEGER",
+                                    "description" => "Quantidade máxima de pedidos para listar (padrão: 25, máximo: 50)."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "top_sacolinhas_acumuladas",
+                        "description" => "Retorna o ranking dos clientes com maiores sacolinhas em aberto no momento: ordenado pelo maior valor total acumulado em peças ou quantidade de peças, com tempo que a sacolinha está aberta (dias acumulando) e contato. Use SEMPRE que perguntarem quem tem as maiores sacolinhas, quem está acumulando muito ou maiores valores em sacolinhas abertas.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "limite" => [
+                                    "type" => "INTEGER",
+                                    "description" => "Quantidade de clientes para o ranking (padrão: 20, máximo: 50)."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "resumo_clube_mania",
+                        "description" => "Retorna o panorama gerencial completo do Clube Mania: quantidade de assinantes ativas, inativas/canceladas, novas assinaturas no mês, arrecadação mensal recorrente estimada (MRR = R$ 50/assinante) e taxa de inadimplência de mensalidades do mês. Use SEMPRE que o usuário perguntar sobre a saúde do Clube Mania, total de assinantes, receita do clube ou inadimplência.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês de competência no formato YYYY-MM (ex: 2026-11). Padrão é o mês atual."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "resumo_desapegos_periodo",
+                        "description" => "Retorna o resumo das avaliações de desapego e compras de peças para o brechó em um mês: total de lotes/avaliações recebidos, total de peças cadastradas/avaliadas, valor total projetado de venda nas araras e valor total a ser pago às desapegantes (payout). Use SEMPRE que o usuário perguntar sobre desapegos do mês, lotes de desapego, compras de peças de clientes ou valores a pagar para fornecedoras/desapegantes.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-11). Padrão é o mês atual."
                                 ]
                             ]
                         ]
@@ -1153,6 +1268,11 @@ class SeverinoService
                         $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Pagamentos obtidos com sucesso! Você DEVE formular e entregar a tabela completa em Markdown diretamente ao usuário agora, ordenada do maior para o menor valor e com o totalizador da soma ao final. Não chame ferramentas adicionais.";
                     }
 
+                    // Incentivo para ferramentas da suíte de gestão executiva
+                    if (in_array($name, ['resumo_fluxo_caixa_mes', 'listar_contas_a_receber', 'comparativo_lives_recentes', 'resumo_envios_pendentes', 'top_sacolinhas_acumuladas', 'resumo_clube_mania', 'resumo_desapegos_periodo']) && empty($resultado['erro'])) {
+                        $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Dados apurados com sucesso! Você DEVE formular e entregar a resposta final completa e formatada em Markdown diretamente ao usuário agora (com tabelas e totalizadores quando aplicável). Não chame ferramentas adicionais e não invente dados fictícios.";
+                    }
+
                     // Bloqueio de parada prematura no mapeamento de módulo ou consulta de código:
                     if ($name === 'mapear_modulo_sistema' || $name === 'consultar_codigo_controller') {
                         $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Os dados acima são APENAS o mapa estrutural e regras do código. Você AINDA NÃO TEM os dados do banco! Você DEVE OBRIGATORIAMENTE chamar 'executar_query_select' para buscar os registros reais no banco antes de formular a resposta para o usuário. É TERMINANTEMENTE PROIBIDO responder ao usuário ou inventar nomes/valores de clientes fictícios antes de consultar o banco!";
@@ -1854,6 +1974,384 @@ class SeverinoService
                         "soma_formatada" => "R$ " . number_format($totalPeriodo, 2, ',', '.'),
                         "pagamentos" => $listaFormatada,
                         "instrucao_apresentacao" => "Apresente esses dados em uma tabela Markdown limpa com Favorecido, Valor Pago, Data, Categoria e Descrição, com o totalizador da soma no final."
+                    ];
+
+                case "resumo_fluxo_caixa_mes":
+                    $periodo = trim((string)($args["periodo"] ?? date('Y-m')));
+                    if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+                        $periodo = date('Y-m');
+                    }
+                    $mesAnterior = date('Y-m', strtotime($periodo . '-01 -1 month'));
+
+                    // Receitas realizadas no mês
+                    $receitas = (float)DB::table('movimentacoes as m')
+                        ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                        ->where('l.tipo', 'receita')
+                        ->where('m.data_pagamento', 'LIKE', "{$periodo}%")
+                        ->sum('m.valor_pago');
+
+                    // Despesas pagas no mês
+                    $despesas = (float)DB::table('movimentacoes as m')
+                        ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                        ->where('l.tipo', 'despesa')
+                        ->where('m.data_pagamento', 'LIKE', "{$periodo}%")
+                        ->sum('m.valor_pago');
+
+                    $resultado = round($receitas - $despesas, 2);
+
+                    // Mês anterior para comparativo
+                    $receitasAnt = (float)DB::table('movimentacoes as m')
+                        ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                        ->where('l.tipo', 'receita')
+                        ->where('m.data_pagamento', 'LIKE', "{$mesAnterior}%")
+                        ->sum('m.valor_pago');
+
+                    $despesasAnt = (float)DB::table('movimentacoes as m')
+                        ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                        ->where('l.tipo', 'despesa')
+                        ->where('m.data_pagamento', 'LIKE', "{$mesAnterior}%")
+                        ->sum('m.valor_pago');
+
+                    // Top 5 maiores categorias de despesa do mês
+                    $topCategoriasDespesa = DB::table('movimentacoes as m')
+                        ->join('lancamentos as l', 'l.id', '=', 'm.lancamento_id')
+                        ->leftJoin('classificacao_financeira as c', 'l.classificacao_financeira_id', '=', 'c.id')
+                        ->where('l.tipo', 'despesa')
+                        ->where('m.data_pagamento', 'LIKE', "{$periodo}%")
+                        ->select(
+                            DB::raw("COALESCE(c.nome, 'Não classificado') as categoria"),
+                            DB::raw("ROUND(SUM(m.valor_pago), 2) as total_gasto")
+                        )
+                        ->groupBy('categoria')
+                        ->orderByDesc('total_gasto')
+                        ->limit(5)
+                        ->get();
+
+                    return [
+                        "periodo" => $periodo,
+                        "receitas_realizadas" => round($receitas, 2),
+                        "receitas_formatadas" => "R$ " . number_format($receitas, 2, ',', '.'),
+                        "despesas_pagas" => round($despesas, 2),
+                        "despesas_formatadas" => "R$ " . number_format($despesas, 2, ',', '.'),
+                        "resultado_operacional" => $resultado,
+                        "resultado_formatado" => "R$ " . number_format($resultado, 2, ',', '.'),
+                        "situacao" => $resultado >= 0 ? "Superávit (Lucro Operacional)" : "Déficit (Prejuízo Operacional)",
+                        "comparativo_mes_anterior" => [
+                            "mes_anterior" => $mesAnterior,
+                            "receitas_anterior" => "R$ " . number_format($receitasAnt, 2, ',', '.'),
+                            "despesas_anterior" => "R$ " . number_format($despesasAnt, 2, ',', '.'),
+                            "variacao_receitas_pct" => $receitasAnt > 0 ? round((($receitas - $receitasAnt) / $receitasAnt) * 100, 1) . "%" : "N/A"
+                        ],
+                        "top_5_maiores_despesas" => $topCategoriasDespesa
+                    ];
+
+                case "listar_contas_a_receber":
+                    $periodo = trim((string)($args["periodo"] ?? ""));
+                    $clienteTermo = trim((string)($args["cliente"] ?? ""));
+                    $status = trim((string)($args["status"] ?? "pendente"));
+                    $limite = min(max((int)($args["limite"] ?? 25), 1), 50);
+
+                    $q = DB::table('lancamentos as l')
+                        ->leftJoin('pessoas as p', 'l.pessoa_id', '=', 'p.id')
+                        ->leftJoin('classificacao_financeira as c', 'l.classificacao_financeira_id', '=', 'c.id')
+                        ->where('l.tipo', 'receita');
+
+                    if ($periodo !== "") {
+                        $q->where('l.data_vencimento', 'LIKE', "{$periodo}%");
+                    }
+
+                    if ($status === 'pendente') {
+                        $q->whereIn('l.status', ['pendente', 'aberto', 'pago_parcial']);
+                    } elseif ($status === 'pago') {
+                        $q->whereIn('l.status', ['pago', 'liquidado']);
+                    }
+
+                    if ($clienteTermo !== "") {
+                        $q->where(function($sub) use ($clienteTermo) {
+                            $sub->where('p.nome', 'LIKE', "%{$clienteTermo}%")
+                                ->orWhere('l.descricao', 'LIKE', "%{$clienteTermo}%");
+                        });
+                    }
+
+                    $q->orderBy('l.data_vencimento', 'asc');
+
+                    $itens = $q->select(
+                        'l.id',
+                        'l.descricao',
+                        'l.valor_total',
+                        'l.status',
+                        'l.data_vencimento',
+                        DB::raw("COALESCE(p.nome, 'Cliente não informado') as cliente"),
+                        DB::raw("COALESCE(c.nome, 'Geral') as categoria")
+                    )->limit($limite)->get();
+
+                    $totalPeriodo = 0;
+                    $listaFormatada = [];
+                    foreach ($itens as $it) {
+                        $v = (float)$it->valor_total;
+                        $totalPeriodo += $v;
+                        $listaFormatada[] = [
+                            "id" => $it->id,
+                            "cliente" => $it->cliente,
+                            "categoria" => $it->categoria,
+                            "valor" => round($v, 2),
+                            "valor_formatado" => "R$ " . number_format($v, 2, ',', '.'),
+                            "vencimento" => date('d/m/Y', strtotime($it->data_vencimento)),
+                            "status" => $it->status,
+                            "descricao" => $it->descricao
+                        ];
+                    }
+
+                    return [
+                        "periodo" => $periodo ?: "todos",
+                        "status_filtrado" => $status,
+                        "total_registros" => count($listaFormatada),
+                        "soma_total" => round($totalPeriodo, 2),
+                        "soma_formatada" => "R$ " . number_format($totalPeriodo, 2, ',', '.'),
+                        "receitas" => $listaFormatada
+                    ];
+
+                case "comparativo_lives_recentes":
+                    $limite = min(max((int)($args["quantidade_lives"] ?? 5), 1), 15);
+                    $periodo = trim((string)($args["periodo"] ?? ""));
+
+                    $q = DB::table('lives')->orderByDesc('data');
+                    if ($periodo !== "") {
+                        $q->where('data', 'LIKE', "{$periodo}%");
+                    }
+                    $lives = $q->limit($limite)->get();
+
+                    $comparativo = [];
+                    $totalGeralFaturamento = 0;
+                    $totalGeralPecas = 0;
+
+                    foreach ($lives as $lv) {
+                        $stats = DB::table('sacolinhas')
+                            ->where('live_id', $lv->id)
+                            ->select(
+                                DB::raw("COUNT(DISTINCT user_id) as total_clientes"),
+                                DB::raw("COUNT(*) as total_pecas"),
+                                DB::raw("COALESCE(SUM(price * quantity), 0) as faturamento_bruto"),
+                                DB::raw("COUNT(CASE WHEN status = 'pedido' THEN 1 END) as pecas_viraram_pedido"),
+                                DB::raw("COALESCE(SUM(CASE WHEN status = 'pedido' THEN price * quantity ELSE 0 END), 0) as valor_virou_pedido")
+                            )->first();
+
+                        $fatBruto = (float)($stats->faturamento_bruto ?? 0);
+                        $valPedido = (float)($stats->valor_virou_pedido ?? 0);
+                        $taxaConversao = $fatBruto > 0 ? round(($valPedido / $fatBruto) * 100, 1) : 0;
+                        $totalClientes = (int)($stats->total_clientes ?? 0);
+                        $ticketMedio = $totalClientes > 0 ? round($fatBruto / $totalClientes, 2) : 0;
+
+                        $totalGeralFaturamento += $fatBruto;
+                        $totalGeralPecas += (int)($stats->total_pecas ?? 0);
+
+                        $comparativo[] = [
+                            "live_id" => $lv->id,
+                            "data" => date('d/m/Y', strtotime($lv->data)),
+                            "tipo" => $lv->tipo ?? "Normal",
+                            "faturamento_bruto" => round($fatBruto, 2),
+                            "faturamento_formatado" => "R$ " . number_format($fatBruto, 2, ',', '.'),
+                            "total_pecas" => (int)($stats->total_pecas ?? 0),
+                            "total_clientes" => $totalClientes,
+                            "ticket_medio_cliente" => "R$ " . number_format($ticketMedio, 2, ',', '.'),
+                            "valor_virou_pedido" => "R$ " . number_format($valPedido, 2, ',', '.'),
+                            "taxa_conversao_pedido" => $taxaConversao . "%"
+                        ];
+                    }
+
+                    return [
+                        "total_lives_analisadas" => count($comparativo),
+                        "faturamento_total_periodo" => "R$ " . number_format($totalGeralFaturamento, 2, ',', '.'),
+                        "faturamento_medio_por_live" => count($comparativo) > 0 ? "R$ " . number_format($totalGeralFaturamento / count($comparativo), 2, ',', '.') : "R$ 0,00",
+                        "total_pecas_vendidas" => $totalGeralPecas,
+                        "lives" => $comparativo
+                    ];
+
+                case "resumo_envios_pendentes":
+                    $limite = min(max((int)($args["limite"] ?? 25), 1), 50);
+
+                    $pedidos = DB::table('pedidos as p')
+                        ->join('users as u', 'p.user_id', '=', 'u.id')
+                        ->where('p.status_pagamento', 'aprovado')
+                        ->whereIn('p.status_pedido', ['confirmado', 'processando', 'embalado', 'pago'])
+                        ->where(function($sub) {
+                            $sub->whereNull('p.codigo_rastreamento')
+                                ->orWhere('p.codigo_rastreamento', '')
+                                ->orWhereNull('p.data_envio');
+                        })
+                        ->orderBy('p.data_pedido', 'asc')
+                        ->select(
+                            'p.id',
+                            'p.numero_pedido',
+                            'p.data_pedido',
+                            'p.status_pedido',
+                            'p.valor_total',
+                            'p.cidade_entrega',
+                            'p.estado_entrega',
+                            'p.melhor_envio_id',
+                            'u.name as cliente'
+                        )
+                        ->limit($limite)
+                        ->get();
+
+                    $totalGeral = DB::table('pedidos')
+                        ->where('status_pagamento', 'aprovado')
+                        ->whereIn('status_pedido', ['confirmado', 'processando', 'embalado', 'pago'])
+                        ->where(function($sub) {
+                            $sub->whereNull('codigo_rastreamento')
+                                ->orWhere('codigo_rastreamento', '')
+                                ->orWhereNull('data_envio');
+                        })
+                        ->count();
+
+                    $lista = [];
+                    foreach ($pedidos as $ped) {
+                        $lista[] = [
+                            "pedido" => $ped->numero_pedido ?: "#{$ped->id}",
+                            "cliente" => $ped->cliente,
+                            "cidade_uf" => trim(($ped->cidade_entrega ?? '') . ' / ' . ($ped->estado_entrega ?? ''), ' /'),
+                            "data_pedido" => date('d/m/Y H:i', strtotime($ped->data_pedido)),
+                            "valor_total" => "R$ " . number_format($ped->valor_total, 2, ',', '.'),
+                            "status_atual" => $ped->status_pedido,
+                            "etiqueta_melhor_envio" => !empty($ped->melhor_envio_id) ? "Gerada ({$ped->melhor_envio_id})" : "Pendente"
+                        ];
+                    }
+
+                    return [
+                        "total_pedidos_aguardando_expedicao" => $totalGeral,
+                        "registros_retornados" => count($lista),
+                        "pedidos" => $lista
+                    ];
+
+                case "top_sacolinhas_acumuladas":
+                    $limite = min(max((int)($args["limite"] ?? 20), 1), 50);
+
+                    $sacolinhas = DB::table('sacolinhas as s')
+                        ->join('users as u', 's.user_id', '=', 'u.id')
+                        ->where('s.status', 'aberta')
+                        ->select(
+                            's.user_id',
+                            'u.name as cliente',
+                            'u.whatsapp',
+                            'u.instagram',
+                            DB::raw("COUNT(*) as total_pecas"),
+                            DB::raw("SUM(s.price * s.quantity) as valor_acumulado"),
+                            DB::raw("MIN(s.add_at) as data_primeira_peca")
+                        )
+                        ->groupBy('s.user_id', 'u.name', 'u.whatsapp', 'u.instagram')
+                        ->orderByDesc('valor_acumulado')
+                        ->limit($limite)
+                        ->get();
+
+                    $ranking = [];
+                    foreach ($sacolinhas as $sac) {
+                        $primeiraData = $sac->data_primeira_peca ? new \DateTime($sac->data_primeira_peca) : new \DateTime();
+                        $hoje = new \DateTime();
+                        $diasAcumulando = $hoje->diff($primeiraData)->days;
+
+                        $ranking[] = [
+                            "cliente" => $sac->cliente,
+                            "contato" => $sac->whatsapp ?: ($sac->instagram ?: "N/D"),
+                            "total_pecas" => (int)$sac->total_pecas,
+                            "valor_acumulado" => (float)$sac->valor_acumulado,
+                            "valor_formatado" => "R$ " . number_format($sac->valor_acumulado, 2, ',', '.'),
+                            "data_primeira_peca" => date('d/m/Y', strtotime($sac->data_primeira_peca)),
+                            "dias_acumulando" => $diasAcumulando,
+                            "situacao" => $diasAcumulando > 31 ? "Vencida (> 31 dias)" : "Em dia"
+                        ];
+                    }
+
+                    return [
+                        "total_clientes_ranking" => count($ranking),
+                        "ranking" => $ranking
+                    ];
+
+                case "resumo_clube_mania":
+                    $periodo = trim((string)($args["periodo"] ?? date('Y-m')));
+                    if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+                        $periodo = date('Y-m');
+                    }
+                    $ano = (int)date('Y', strtotime($periodo . '-01'));
+                    $mes = (int)date('m', strtotime($periodo . '-01'));
+
+                    $ativas = DB::table('clube_assinaturas')->where('status', 'ativa')->count();
+                    $canceladas = DB::table('clube_assinaturas')->where('status', 'cancelada')->count();
+                    $inativas = DB::table('clube_assinaturas')->where('status', 'inativa')->count();
+
+                    $novasMes = DB::table('clube_assinaturas')
+                        ->where('created_at', 'LIKE', "{$periodo}%")
+                        ->count();
+
+                    // Mensalidades do mês na tabela clube_mensalidades
+                    $mensalidadesTotal = DB::table('clube_mensalidades')
+                        ->where('competencia_ano', $ano)
+                        ->where('competencia_mes', $mes)
+                        ->count();
+                    $mensalidadesPagas = DB::table('clube_mensalidades')
+                        ->where('competencia_ano', $ano)
+                        ->where('competencia_mes', $mes)
+                        ->where('status_pagamento', 'pago')
+                        ->count();
+                    $mensalidadesPendentes = DB::table('clube_mensalidades')
+                        ->where('competencia_ano', $ano)
+                        ->where('competencia_mes', $mes)
+                        ->where('status_pagamento', 'pendente')
+                        ->count();
+
+                    $mrrEstimado = $ativas * 50.00;
+
+                    return [
+                        "periodo" => "{$ano}-" . str_pad($mes, 2, '0', STR_PAD_LEFT),
+                        "assinaturas_ativas" => $ativas,
+                        "assinaturas_canceladas" => $canceladas,
+                        "assinaturas_inativas" => $inativas,
+                        "novas_assinaturas_no_mes" => $novasMes,
+                        "mrr_recorrencia_estimada" => "R$ " . number_format($mrrEstimado, 2, ',', '.'),
+                        "mensalidades_do_mes" => [
+                            "total_geradas" => $mensalidadesTotal,
+                            "pagas" => $mensalidadesPagas,
+                            "pendentes_inadimplentes" => $mensalidadesPendentes,
+                            "taxa_inadimplencia" => $mensalidadesTotal > 0 ? round(($mensalidadesPendentes / $mensalidadesTotal) * 100, 1) . "%" : "0%"
+                        ]
+                    ];
+
+                case "resumo_desapegos_periodo":
+                    $periodo = trim((string)($args["periodo"] ?? date('Y-m')));
+                    if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+                        $periodo = date('Y-m');
+                    }
+
+                    $avaliacoes = DB::table('avaliacoes')
+                        ->where('data_avaliacao', 'LIKE', "{$periodo}%")
+                        ->get();
+
+                    $totalLotes = count($avaliacoes);
+                    $totalVenda = 0;
+                    $totalPayout = 0;
+                    $statusContagem = [];
+
+                    foreach ($avaliacoes as $av) {
+                        $totalVenda += (float)$av->total_venda;
+                        $totalPayout += (float)$av->total_payout;
+                        $st = $av->status ?: 'indefinido';
+                        $statusContagem[$st] = ($statusContagem[$st] ?? 0) + 1;
+                    }
+
+                    $totalPecas = DB::table('avaliacao_items as ai')
+                        ->join('avaliacoes as a', 'ai.avaliacao_id', '=', 'a.id')
+                        ->where('a.data_avaliacao', 'LIKE', "{$periodo}%")
+                        ->count();
+
+                    $margemProjetada = round($totalVenda - $totalPayout, 2);
+
+                    return [
+                        "periodo" => $periodo,
+                        "total_lotes_recebidos" => $totalLotes,
+                        "total_pecas_avaliadas" => $totalPecas,
+                        "total_projetado_venda" => "R$ " . number_format($totalVenda, 2, ',', '.'),
+                        "total_payout_fornecedoras" => "R$ " . number_format($totalPayout, 2, ',', '.'),
+                        "margem_bruta_projetada" => "R$ " . number_format($margemProjetada, 2, ',', '.'),
+                        "distribuicao_status_lotes" => $statusContagem
                     ];
 
                 case "consultar_contas_bancarias":
