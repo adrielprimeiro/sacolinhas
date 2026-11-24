@@ -225,6 +225,11 @@ class SeverinoService
             "  3. PASSO 1 - AUDITORIA IMEDIATA: Chame IMEDIATAMENTE `auditar_divergencia_saldo_conta(conta: 'Mercado Pago', saldo_real: 0.33)`. Essa ferramenta calcula a fórmula do sistema (`saldo_inicial + receitas - despesas`), apura a diferença e cruza as movimentações com o extrato bancário.\n" .
             "  4. PASSO 2 - ANÁLISE DE TAXAS E CONCILIAÇÕES: A ferramenta identifica automaticamente transações conciliadas onde a taxa cobrada pelo banco difere da despesa de taxa registrada no sistema (como no Pedido PED-001031 onde a taxa real foi de 12,94 e o sistema só lançou 6,47, deixando 6,47 a mais no saldo!).\n" .
             "  5. RESPOSTA FINAL: Apresente o diagnóstico matemático completo, indicando o saldo do sistema, o saldo real, a diferença exata, a transação/pedido responsável pelo erro e a explicação exata de como ajustar!\n" .
+            "- PAGAMENTOS DE FORNECEDORES E CONTAS A PAGAR:\n" .
+            "  1. Quando o usuário pedir 'lista de pagamento de fornecedor', 'fornecedores pagos deste mês', 'contas pagas do maior para o menor', ou despesas de fornecedores:\n" .
+            "  2. USE SEMPRE A FERRAMENTA DEDICADA `listar_pagamentos_fornecedores`! Ela já filtra as despesas do mês, agrupa favorecidos, datas, categorias e ordena do maior para o menor valor.\n" .
+            "  3. NUNCA tente inventar queries SQL manuais com nomes errados de tabela (a tabela é `classificacao_financeira` no singular e não categorias_financeiras) para listar fornecedores.\n" .
+            "  4. Apresente os resultados em uma tabela Markdown organizada com Favorecido, Valor Pago, Data, Categoria e Descrição, com o totalizador dos pagamentos no final!\n" .
             "REGRAS CONCEITUAIS DO MÓDULO FINANCEIRO E CONCILIAÇÃO:\n" .
             "- REGRAS PADRÃO DE CONCILIAÇÃO BANCÁRIA (`regras_conciliacao`):\n" .
             "  1. Ficam salvas em formato JSON na tabela `configuracoes` onde `chave = 'regras_conciliacao'`.\n" .
@@ -339,6 +344,35 @@ class SeverinoService
                                 "termo" => [
                                     "type" => "STRING",
                                     "description" => "Opcional. Nome da conta bancária (ex: 'Mercado Pago', 'Inter', 'Caixinha') para filtrar."
+                                ]
+                            ]
+                        ]
+                    ],
+                    [
+                        "name" => "listar_pagamentos_fornecedores",
+                        "description" => "Lista os pagamentos e contas a pagar de fornecedores, compras de mercadorias, desapegos e despesas operacionais do mês atual ou de um período específico. Retorna favorecido, categoria, valor, data de pagamento/vencimento e descrição em ordem decrescente de valor (do maior para o menor) ou por data. Use SEMPRE que o usuário perguntar por pagamentos a fornecedores, lista de fornecedores pagos, maiores contas pagas ou despesas do mês.",
+                        "parameters" => [
+                            "type" => "OBJECT",
+                            "properties" => [
+                                "periodo" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Mês no formato YYYY-MM (ex: 2026-11). Se vazio, usa o mês atual."
+                                ],
+                                "fornecedor" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. Nome do fornecedor ou favorecido para filtrar."
+                                ],
+                                "status" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. 'pago' (padrão), 'pendente' ou 'todos'."
+                                ],
+                                "ordem" => [
+                                    "type" => "STRING",
+                                    "description" => "Opcional. 'maior_valor' (padrão), 'menor_valor' ou 'data'."
+                                ],
+                                "limite" => [
+                                    "type" => "INTEGER",
+                                    "description" => "Quantidade máxima de registros (padrão: 25, máximo: 50)."
                                 ]
                             ]
                         ]
@@ -916,10 +950,9 @@ class SeverinoService
                                         "content" => "[DADOS DA CONSULTA '{$toolName}']:\n{$m['content']}\n\nAnalise esses dados apurados e formule a resposta final completa e formatada em Markdown, ou chame novas ferramentas se ainda faltar alguma informação."
                                     ];
                                 } elseif (!empty($m["tool_calls"])) {
-                                    $toolNames = array_map(fn($tc) => $tc["function"]["name"] ?? "", $m["tool_calls"]);
                                     $sanitizedGeminiMessages[] = [
                                         "role" => "assistant",
-                                        "content" => "Vou consultar as ferramentas no sistema: " . implode(", ", array_filter($toolNames))
+                                        "content" => ""
                                     ];
                                 } else {
                                     $sanitizedGeminiMessages[] = $m;
@@ -1115,6 +1148,11 @@ class SeverinoService
                         $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Auditoria de saldo executada com sucesso! Você DEVE formular e entregar a resposta final completa e formatada em Markdown diretamente ao usuário agora, apresentando o saldo do sistema, o saldo real, a diferença exata e o diagnóstico da transação responsável pela divergência. NUNCA pergunte 'se o usuário gostaria' de investigar mais ou peça 'sinal verde'. Entregue a conclusão e a explicação agora!";
                     }
 
+                    // Incentivo para pagamentos de fornecedores: entrega a tabela completa imediatamente
+                    if ($name === 'listar_pagamentos_fornecedores' && empty($resultado['erro'])) {
+                        $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Pagamentos obtidos com sucesso! Você DEVE formular e entregar a tabela completa em Markdown diretamente ao usuário agora, ordenada do maior para o menor valor e com o totalizador da soma ao final. Não chame ferramentas adicionais.";
+                    }
+
                     // Bloqueio de parada prematura no mapeamento de módulo ou consulta de código:
                     if ($name === 'mapear_modulo_sistema' || $name === 'consultar_codigo_controller') {
                         $resumoDoResultado .= "\n\n[INSTRUÇÃO CRÍTICA DO SISTEMA]: Os dados acima são APENAS o mapa estrutural e regras do código. Você AINDA NÃO TEM os dados do banco! Você DEVE OBRIGATORIAMENTE chamar 'executar_query_select' para buscar os registros reais no banco antes de formular a resposta para o usuário. É TERMINANTEMENTE PROIBIDO responder ao usuário ou inventar nomes/valores de clientes fictícios antes de consultar o banco!";
@@ -1259,7 +1297,7 @@ class SeverinoService
 
                 // 9. BLOQUEIO DE EXPOSIÇÃO DE ERROS DE SQL / NARRATIVAS DE RETENTATIVA AO USUÁRIO:
                 // Impede o modelo de desistir e expor erros técnicos (como LIMIT dentro de IN, colunas inválidas) ou narrar 'vou tentar de outra forma'
-                $exposErroOuNarrouAcao = preg_match('/(houve um erro|erro na consulta|não consigo usar|nao consigo usar|vou tentar de outra forma|primeiro[, ]+(vou|vamos) (buscar|consultar|verificar|identificar)|vou verificar a estrutura|parece que a coluna|não existe na tabela|nao existe na tabela|erro ao buscar as lives|ocorreu um erro ao executar)/iu', $finalText);
+                $exposErroOuNarrouAcao = preg_match('/(houve um erro|erro na consulta|não consigo usar|nao consigo usar|vou tentar de outra forma|primeiro[, ]+(vou|vamos) (buscar|consultar|verificar|identificar)|vou verificar a estrutura|parece que a coluna|não existe na tabela|nao existe na tabela|erro ao buscar as lives|ocorreu um erro ao executar|vou consultar as ferramentas|executar_query_select|ferramentas no sistema)/iu', $finalText);
                 if ($exposErroOuNarrouAcao && $i < 7) {
                     \Illuminate\Support\Facades\Log::warning("Severino tentou expor erro técnico ou narrar intenção em vez de executar ('{$finalText}'). Interceptando na iteração {$i}.");
                     $payload["messages"][] = [
@@ -1274,12 +1312,16 @@ class SeverinoService
             }
 
             if ($finalText !== "") {
-                if ($sessionId) {
-                    \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
-                    \Illuminate\Support\Facades\Cache::forget('severino_pause_count_' . $sessionId);
+                if (str_contains($finalText, 'Vou consultar as ferramentas') || str_contains($finalText, 'executar_query_select')) {
+                    \Illuminate\Support\Facades\Log::warning("Severino tentou retornar texto interno de debug ('{$finalText}'). Forçando síntese de recuperação.");
+                } else {
+                    if ($sessionId) {
+                        \Illuminate\Support\Facades\Cache::forget('severino_scratchpad_' . $sessionId);
+                        \Illuminate\Support\Facades\Cache::forget('severino_pause_count_' . $sessionId);
+                    }
+                    \Illuminate\Support\Facades\Log::info("Severino Final Response Message:", $message);
+                    return $finalText;
                 }
-                \Illuminate\Support\Facades\Log::info("Severino Final Response Message:", $message);
-                return $finalText;
             }
 
             // Fallback de segurança: se o modelo encerrou sem texto, tenta síntese a partir do histórico/scratchpad
@@ -1729,6 +1771,89 @@ class SeverinoService
                     return [
                         "total_pedidos" => count($detalhes),
                         "pedidos" => $detalhes
+                    ];
+
+                case "listar_pagamentos_fornecedores":
+                    $periodo = trim((string)($args["periodo"] ?? date('Y-m')));
+                    if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+                        $periodo = date('Y-m');
+                    }
+
+                    $fornecedorTermo = trim((string)($args["fornecedor"] ?? ""));
+                    $status = trim((string)($args["status"] ?? "pago"));
+                    $ordem = trim((string)($args["ordem"] ?? "maior_valor"));
+                    $limite = min(max((int)($args["limite"] ?? 25), 1), 50);
+
+                    $q = DB::table('lancamentos as l')
+                        ->leftJoin('pessoas as p', 'l.pessoa_id', '=', 'p.id')
+                        ->leftJoin('classificacao_financeira as c', 'l.classificacao_financeira_id', '=', 'c.id')
+                        ->leftJoin('movimentacoes as m', 'm.lancamento_id', '=', 'l.id')
+                        ->where('l.tipo', 'despesa')
+                        ->where(function($sub) use ($periodo) {
+                            $sub->where('l.data_vencimento', 'LIKE', "{$periodo}%")
+                                ->orWhere('m.data_pagamento', 'LIKE', "{$periodo}%");
+                        });
+
+                    if ($status === 'pago') {
+                        $q->whereIn('l.status', ['pago', 'liquidado']);
+                    } elseif ($status === 'pendente') {
+                        $q->whereIn('l.status', ['pendente', 'aberto', 'pago_parcial']);
+                    }
+
+                    if ($fornecedorTermo !== "") {
+                        $q->where(function($sub) use ($fornecedorTermo) {
+                            $sub->where('p.nome', 'LIKE', "%{$fornecedorTermo}%")
+                                ->orWhere('l.descricao', 'LIKE', "%{$fornecedorTermo}%");
+                        });
+                    }
+
+                    if ($ordem === 'menor_valor') {
+                        $q->orderBy(DB::raw("COALESCE(m.valor_pago, l.valor_total)"), 'asc');
+                    } elseif ($ordem === 'data') {
+                        $q->orderByDesc(DB::raw("COALESCE(m.data_pagamento, l.data_vencimento)"));
+                    } else {
+                        $q->orderByDesc(DB::raw("COALESCE(m.valor_pago, l.valor_total)"));
+                    }
+
+                    $itens = $q->select(
+                        'l.id',
+                        'l.descricao',
+                        'l.valor_total',
+                        'l.status',
+                        'l.data_vencimento',
+                        'm.data_pagamento',
+                        'm.valor_pago',
+                        DB::raw("COALESCE(p.nome, 'Não identificado') as favorecido"),
+                        DB::raw("COALESCE(c.nome, 'Geral') as categoria")
+                    )->limit($limite)->get();
+
+                    $totalPeriodo = 0;
+                    $listaFormatada = [];
+                    foreach ($itens as $it) {
+                        $valorNum = (float)($it->valor_pago ?: $it->valor_total);
+                        $dataReal = $it->data_pagamento ? date('d/m/Y', strtotime($it->data_pagamento)) : date('d/m/Y', strtotime($it->data_vencimento));
+                        $totalPeriodo += $valorNum;
+
+                        $listaFormatada[] = [
+                            "id" => $it->id,
+                            "favorecido" => $it->favorecido,
+                            "categoria" => $it->categoria,
+                            "valor" => $valorNum,
+                            "valor_formatado" => "R$ " . number_format($valorNum, 2, ',', '.'),
+                            "data" => $dataReal,
+                            "status" => $it->status,
+                            "descricao" => $it->descricao
+                        ];
+                    }
+
+                    return [
+                        "periodo" => $periodo,
+                        "status_filtrado" => $status,
+                        "total_registros_retornados" => count($listaFormatada),
+                        "soma_dos_registros_retornados" => round($totalPeriodo, 2),
+                        "soma_formatada" => "R$ " . number_format($totalPeriodo, 2, ',', '.'),
+                        "pagamentos" => $listaFormatada,
+                        "instrucao_apresentacao" => "Apresente esses dados em uma tabela Markdown limpa com Favorecido, Valor Pago, Data, Categoria e Descrição, com o totalizador da soma no final."
                     ];
 
                 case "consultar_contas_bancarias":
