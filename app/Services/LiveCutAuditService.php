@@ -34,8 +34,9 @@ class LiveCutAuditService
 
     /**
      * Audita um único item da live (regras determinísticas + opcionalmente Visão IA / Texto IA).
+     * $batchContext opcional pode conter ['duplicate_count' => int, 'duplicate_time_label' => string, 'out_of_order_msg' => string]
      */
-    public function auditLiveItem(object $row, ?Live $live = null, bool $useVision = false): array
+    public function auditLiveItem(object $row, ?Live $live = null, bool $useVision = false, array $batchContext = []): array
     {
         $expectedCode = $this->extractNumericCode($row->codigo_live ?? $row->item_codigo ?? '');
         $itemName = trim((string) ($row->item_nome ?? $row->nome_do_produto ?? ''));
@@ -50,7 +51,20 @@ class LiveCutAuditService
             $snippet = $this->extractSnippetFromRaw($live->transcription_raw, (float) $row->cut_start_sec, (float) $row->cut_end_sec);
         }
 
-        // 1) Checagem determinística rápida (código falado, preço, tipo de peça, marca, tamanho)
+        // 0) Checagem estrutural de corte duplicado (ex.: 68 itens com o mesmo trecho de despedida da live!)
+        $duplicateCount = (int) ($batchContext['duplicate_count'] ?? 1);
+        if ($duplicateCount >= 2) {
+            $timeLabel = $batchContext['duplicate_time_label'] ?? gmdate('H:i:s', max(0, (int) round((float) ($row->cut_start_sec ?? 0))));
+            return [
+                'status'        => 'mismatch',
+                'score'         => 0,
+                'reason'        => "Corte duplicado! Mesmo trecho ({$timeLabel}) repetido em {$duplicateCount} itens diferentes.",
+                'detected_code' => null,
+                'method'        => 'rules',
+            ];
+        }
+
+        // 1) Checagem determinística rápida (código falado inclusive soletrado "1, 1, 6", preço, tipo de peça, marca, tamanho)
         $ruleResult = $this->runDeterministicAudit([
             'expected_code' => $expectedCode,
             'name'          => $itemName,
@@ -62,6 +76,13 @@ class LiveCutAuditService
             'snippet'       => $snippet,
             'has_cut'       => !empty($row->video_cut_path) || !empty($row->video_cut_url) || ($row->cut_start_sec !== null && $row->cut_end_sec !== null),
         ]);
+
+        // Se o horário saltou muito fora de ordem em relação aos códigos vizinhos e o código não foi confirmado
+        if (!empty($batchContext['out_of_order_msg']) && $ruleResult['status'] !== 'ok') {
+            $ruleResult['status'] = 'mismatch';
+            $ruleResult['score'] = min($ruleResult['score'], 20);
+            $ruleResult['reason'] = $batchContext['out_of_order_msg'] . ' • ' . $ruleResult['reason'];
+        }
 
         // 2) Se solicitado modo IA (Visão na thumbnail + transcrição), executa análise multimodal com Gemini
         if ($useVision) {
@@ -134,7 +155,50 @@ class LiveCutAuditService
     }
 
     /**
-     * Detecta descompasso em cascata (efeito dominó, ex.: "a partir do #311 todos errados").
+     * Calcula contexto estrutural de lote (cortes com timestamps duplicados/repetidos na mesma live).
+     */
+    public function buildBatchContext(Collection $rows): array
+    {
+        $bucketCounts = [];
+        $rowBuckets = [];
+
+        foreach ($rows as $row) {
+            if ($row->cut_start_sec === null || $row->cut_end_sec === null) {
+                continue;
+            }
+            $s = (float) $row->cut_start_sec;
+            $e = (float) $row->cut_end_sec;
+            // Agrupa em janelas de 5s para pegar duplicatas exatas ou quase idênticas (ex: 12126s e 12136s no fim da live)
+            $key = (int) round($s / 15) . '_' . (int) round($e / 15);
+            $bucketCounts[$key] = ($bucketCounts[$key] ?? 0) + 1;
+            $rowBuckets[$row->id] = [
+                'key'        => $key,
+                'time_label' => gmdate('H:i:s', max(0, (int) round($s))),
+            ];
+        }
+
+        $contextById = [];
+        foreach ($rows as $row) {
+            $dupCount = 1;
+            $timeLabel = null;
+            if (isset($rowBuckets[$row->id])) {
+                $bKey = $rowBuckets[$row->id]['key'];
+                $dupCount = (int) ($bucketCounts[$bKey] ?? 1);
+                $timeLabel = $rowBuckets[$row->id]['time_label'];
+            }
+            $contextById[$row->id] = [
+                'duplicate_count'      => $dupCount,
+                'duplicate_time_label' => $timeLabel,
+                'out_of_order_msg'     => null,
+            ];
+        }
+
+        return $contextById;
+    }
+
+    /**
+     * Detecta descompasso em cascata (efeito dominó — exige >= 4 falhas consecutivas para evitar falsos alarmes).
+     * Prioriza o maior bloco contínuo de falhas/descompasso na live.
      */
     public function detectCascadeDrift(Collection $items): array
     {
@@ -150,10 +214,11 @@ class LiveCutAuditService
         $approvedCount = 0;
         $pendingCount = 0;
 
-        $firstCascadeCode = null;
-        $consecutiveBad = 0;
-        $runStartCode = null;
-        $mismatchCodes = [];
+        $bestRunStartCode = null;
+        $bestRunLen = 0;
+
+        $curRunStartCode = null;
+        $curRunLen = 0;
 
         foreach ($ordered as $item) {
             $status = is_array($item) ? ($item['audit_status'] ?? null) : ($item->audit_status ?? null);
@@ -161,17 +226,17 @@ class LiveCutAuditService
 
             if (in_array($status, ['mismatch', 'rejected'], true)) {
                 $mismatchCount++;
-                $mismatchCodes[] = $code;
-                if ($consecutiveBad === 0) {
-                    $runStartCode = $code;
+                if ($curRunLen === 0) {
+                    $curRunStartCode = $code;
                 }
-                $consecutiveBad++;
-                if ($consecutiveBad >= 2 && $firstCascadeCode === null) {
-                    $firstCascadeCode = $runStartCode;
+                $curRunLen++;
+                if ($curRunLen > $bestRunLen) {
+                    $bestRunLen = $curRunLen;
+                    $bestRunStartCode = $curRunStartCode;
                 }
             } else {
-                $consecutiveBad = 0;
-                $runStartCode = null;
+                $curRunLen = 0;
+                $curRunStartCode = null;
                 if ($status === 'warning') {
                     $warningCount++;
                 } elseif ($status === 'approved') {
@@ -183,6 +248,8 @@ class LiveCutAuditService
                 }
             }
         }
+
+        $firstCascadeCode = ($bestRunLen >= 4) ? $bestRunStartCode : null;
 
         $affectedFromCascade = 0;
         if ($firstCascadeCode !== null) {
@@ -690,10 +757,16 @@ class LiveCutAuditService
         $explicit = [];
         $anyNumber = [];
 
-        // Padrões explícitos: "codigo 314", "numero 314", "peca 314", "cod 314", "#314"
-        if (preg_match_all('/(?:codigo|cod\.?|numero|num\.?|peca|#)\s*[:\-]?\s*(\d{1,4})\b/u', $normSnippet, $m)) {
-            foreach ($m[1] as $num) {
-                $explicit[] = (int) $num;
+        // Padrões explícitos incluindo dígitos soletrados pelo Whisper: "código 1, 1, 6", "código 3, 0, 5", "código 310"
+        if (preg_match_all('/(?:codigo|cod\.?|numero|num\.?|peca|#)\s*[:\-]?\s*(\d{1,4}(?:[\s,.\-]+\d{1,2}){0,3})/u', $normSnippet, $m)) {
+            foreach ($m[1] as $rawSeq) {
+                $joined = preg_replace('/\D+/', '', $rawSeq);
+                if ($joined !== '' && strlen($joined) <= 4) {
+                    $explicit[] = (int) $joined;
+                } elseif (strlen($joined) > 4) {
+                    // Ex: "código 2, 5, 3, 5, 4" (fala corrigindo 254 -> 354): extrai os últimos 3 dígitos também
+                    $explicit[] = (int) substr($joined, -3);
+                }
             }
         }
 
@@ -727,6 +800,14 @@ class LiveCutAuditService
     {
         if (preg_match('/\b' . $num . '\b/', $normSnippet)) {
             return true;
+        }
+        // Reconhece dígitos soletrados com espaços/vírgulas/pontos/hífens (ex: 116 -> "1, 1, 6" ou "1 16")
+        $digits = str_split((string) $num);
+        if (count($digits) >= 2) {
+            $spelledRegex = '/\b' . implode('[\s,.\-]*', $digits) . '\b/';
+            if (preg_match($spelledRegex, $normSnippet)) {
+                return true;
+            }
         }
         // Também reconhece dezenas/centenas faladas por extenso (ex: 311 -> "trezentos e onze")
         $words = $this->intToPortugueseWords($num);

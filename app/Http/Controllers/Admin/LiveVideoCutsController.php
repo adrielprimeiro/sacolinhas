@@ -3947,6 +3947,7 @@ PROMPT;
             ->orderBy('live_items.id', 'asc')
             ->get();
 
+        $batchContext = $auditService->buildBatchContext($rows);
         $results = [];
         $auditedCount = 0;
 
@@ -3973,7 +3974,7 @@ PROMPT;
 
             // No modo Visão IA em lote, limita a 35 itens por rodada para evitar timeout HTTP
             $callVisionNow = $useVision && $auditedCount < 35;
-            $res = $auditService->auditLiveItem($row, $live, $callVisionNow);
+            $res = $auditService->auditLiveItem($row, $live, $callVisionNow, $batchContext[$row->id] ?? []);
             $auditService->persistAuditResult((int) $row->id, $res);
 
             $results[$row->id] = $res;

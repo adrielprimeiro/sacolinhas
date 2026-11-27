@@ -2117,18 +2117,24 @@
             <!-- Filtros da Grade + Feedback -->
             <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6;">
                 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
-                    <button type="button" onclick="setAuditGridFilter('all')" data-grid-filter="all" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: none; background-color: #111827; color: #ffffff !important;">Todos</button>
-                    <button type="button" onclick="setAuditGridFilter('issues')" data-grid-filter="issues" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #fca5a5; background-color: #fee2e2; color: #991b1b;">❌ Incompatíveis / Conferir</button>
-                    <button type="button" onclick="setAuditGridFilter('ok')" data-grid-filter="ok" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #86efac; background-color: #dcfce7; color: #166534;">✅ OK / Aprovados</button>
-                    <button type="button" onclick="setAuditGridFilter('pending')" data-grid-filter="pending" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #d1d5db; background-color: #f3f4f6; color: #374151;">Pendentes</button>
+                    <button type="button" onclick="setAuditGridFilter('all')" data-grid-filter="all" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: none; background-color: #111827; color: #ffffff !important;">Todos (<span id="grid-cnt-all">0</span>)</button>
+                    <button type="button" onclick="setAuditGridFilter('mismatch')" data-grid-filter="mismatch" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #fca5a5; background-color: #fee2e2; color: #991b1b;">❌ Errados (<span id="grid-cnt-mismatch">0</span>)</button>
+                    <button type="button" onclick="setAuditGridFilter('warning')" data-grid-filter="warning" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #fcd34d; background-color: #fef3c7; color: #92400e;">⚠️ Conferir (<span id="grid-cnt-warning">0</span>)</button>
+                    <button type="button" onclick="setAuditGridFilter('ok')" data-grid-filter="ok" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #86efac; background-color: #dcfce7; color: #166534;">✅ OK (<span id="grid-cnt-ok">0</span>)</button>
+                    <button type="button" onclick="setAuditGridFilter('pending')" data-grid-filter="pending" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #d1d5db; background-color: #f3f4f6; color: #374151;">Pendentes (<span id="grid-cnt-pending">0</span>)</button>
                 </div>
                 <div id="audit-modal-feedback" style="font-size: 12px; font-weight: 700; color: #1f2937;"></div>
             </div>
         </div>
 
-        <!-- Grade Visual de Conferência (com scroll garantido e altura fixa dos cards) -->
-        <div id="audit-visual-grid" class="custom-modal-scroll"
-             style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 20px; background-color: #f3f4f6; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; align-content: start;">
+        <!-- Wrapper de scroll separado do Grid (impede o colapso de altura dos cards no Chrome!) -->
+        <div class="custom-modal-scroll" style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 20px; background-color: #f3f4f6;">
+            <div id="audit-visual-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px;"></div>
+            <div id="audit-load-more-wrap" style="display: none; text-align: center; margin-top: 18px;">
+                <button type="button" onclick="loadMoreAuditCards()" style="padding: 10px 24px; border-radius: 12px; font-size: 13px; font-weight: 800; background-color: #111827; color: #ffffff !important; border: none; cursor: pointer;">
+                    Carregar mais itens...
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -5294,13 +5300,15 @@
     // =========================================================================
     const auditItemsState = @json($liveItems->values());
     let auditGridFilter = 'all';
+    let auditGridLimit = 48;
 
     function openCutAuditModal(initialFilter) {
         const modal = document.getElementById('cut-audit-modal');
         if (!modal) return;
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
-        setAuditGridFilter(initialFilter || 'all');
+        const f = (initialFilter === 'issues') ? 'mismatch' : (initialFilter || 'all');
+        setAuditGridFilter(f);
     }
 
     function closeCutAuditModal() {
@@ -5311,15 +5319,19 @@
     }
 
     function setAuditGridFilter(filter) {
-        auditGridFilter = filter || 'all';
+        auditGridFilter = (filter === 'issues') ? 'mismatch' : (filter || 'all');
+        auditGridLimit = 48;
         document.querySelectorAll('.audit-grid-filter-btn').forEach(btn => {
             const f = btn.getAttribute('data-grid-filter');
             if (f === auditGridFilter) {
                 btn.style.backgroundColor = '#111827';
                 btn.style.color = '#ffffff';
-            } else if (f === 'issues') {
+            } else if (f === 'mismatch') {
                 btn.style.backgroundColor = '#fee2e2';
                 btn.style.color = '#991b1b';
+            } else if (f === 'warning') {
+                btn.style.backgroundColor = '#fef3c7';
+                btn.style.color = '#92400e';
             } else if (f === 'ok') {
                 btn.style.backgroundColor = '#dcfce7';
                 btn.style.color = '#166534';
@@ -5328,6 +5340,11 @@
                 btn.style.color = '#374151';
             }
         });
+        renderAuditVisualGrid();
+    }
+
+    function loadMoreAuditCards() {
+        auditGridLimit += 48;
         renderAuditVisualGrid();
     }
 
@@ -5343,20 +5360,51 @@
         const grid = document.getElementById('audit-visual-grid');
         if (!grid) return;
 
+        // Atualiza contadores das abas do modal
+        let cAll = auditItemsState.length, cBad = 0, cWarn = 0, cOk = 0, cPend = 0;
+        auditItemsState.forEach(it => {
+            const st = it.audit_status || '';
+            if (st === 'mismatch' || st === 'rejected') cBad++;
+            else if (st === 'warning') cWarn++;
+            else if (st === 'ok' || st === 'approved') cOk++;
+            else cPend++;
+        });
+        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setTxt('grid-cnt-all', cAll);
+        setTxt('grid-cnt-mismatch', cBad);
+        setTxt('grid-cnt-warning', cWarn);
+        setTxt('grid-cnt-ok', cOk);
+        setTxt('grid-cnt-pending', cPend);
+
         const filtered = auditItemsState.filter(it => {
             const st = it.audit_status || '';
-            if (auditGridFilter === 'issues') return st === 'mismatch' || st === 'rejected' || st === 'warning';
+            if (auditGridFilter === 'mismatch') return st === 'mismatch' || st === 'rejected';
+            if (auditGridFilter === 'warning') return st === 'warning';
             if (auditGridFilter === 'ok') return st === 'ok' || st === 'approved';
             if (auditGridFilter === 'pending') return !st;
             return true;
         });
 
+        const loadMoreWrap = document.getElementById('audit-load-more-wrap');
+
         if (filtered.length === 0) {
             grid.innerHTML = '<div style="grid-column: 1 / -1; background-color: #ffffff; border-radius: 14px; border: 1px solid #e5e7eb; padding: 36px; text-align: center; font-size: 14px; font-weight: 700; color: #4b5563;">Nenhum item encontrado neste filtro.</div>';
+            if (loadMoreWrap) loadMoreWrap.style.display = 'none';
             return;
         }
 
-        grid.innerHTML = filtered.map(it => {
+        const visible = filtered.slice(0, auditGridLimit);
+        if (loadMoreWrap) {
+            if (filtered.length > auditGridLimit) {
+                loadMoreWrap.style.display = 'block';
+                const rem = filtered.length - auditGridLimit;
+                loadMoreWrap.querySelector('button').textContent = `Carregar mais itens (restam ${rem})`;
+            } else {
+                loadMoreWrap.style.display = 'none';
+            }
+        }
+
+        grid.innerHTML = visible.map(it => {
             const st = it.audit_status || '';
             const isBad = st === 'mismatch' || st === 'rejected';
             const isWarn = st === 'warning';
@@ -5405,7 +5453,7 @@
             return `
                 <div style="background-color: #ffffff; border-radius: 14px; border: 2px solid ${borderColor}; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column;">
                     <div style="position: relative; width: 100%; height: 220px; background-color: #111827; overflow: hidden; flex-shrink: 0;">
-                        <img src="${escapeHtmlAudit(thumbUrl)}" alt="#${escapeHtmlAudit(it.codigo_live)}" style="width: 100%; height: 100%; object-fit: contain; display: block; background-color: #111827;" onerror="this.src='https://placehold.co/400x300?text=Sem+Thumbnail'">
+                        <img src="${escapeHtmlAudit(thumbUrl)}" loading="lazy" alt="#${escapeHtmlAudit(it.codigo_live)}" style="width: 100%; height: 100%; object-fit: contain; display: block; background-color: #111827;" onerror="this.src='https://placehold.co/400x300?text=Sem+Thumbnail'">
                         <div style="position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                             <span style="padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 900; background-color: #4f46e5; color: #ffffff;">#${escapeHtmlAudit(it.codigo_live)}</span>
                             ${statusBadge}
