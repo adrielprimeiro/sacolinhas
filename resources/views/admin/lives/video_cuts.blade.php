@@ -843,7 +843,8 @@
                                         &bull; R$ {{ $item['item_price'] }}
                                     </div>
                                     <div id="audit-reason-{{ $item['live_item_id'] }}"
-                                         class="{{ ($isAuditBad || $isAuditWarn) && $auditReason ? '' : 'hidden' }} mt-1 text-[11px] font-bold px-2 py-1 rounded-lg {{ $isAuditBad ? 'bg-red-100 text-red-900 border border-red-200' : 'bg-amber-100 text-amber-900 border border-amber-200' }}">
+                                         class="{{ ($isAuditBad || $isAuditWarn) && $auditReason ? '' : 'hidden' }} mt-1 px-2 py-1 rounded-lg"
+                                         style="font-size: 11px; font-weight: 700; {{ $isAuditBad ? 'background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : 'background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;' }}">
                                         {{ $auditReason }}
                                     </div>
                                 </div>
@@ -900,7 +901,8 @@
                                     <button type="button"
                                             onclick="runSingleVisionAudit({{ $item['live_item_id'] }}, this)"
                                             title="Verificar com Visão IA (Gemini compara a thumbnail e a fala com o cadastro do item)"
-                                            class="p-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                            class="p-2 rounded-xl text-xs transition cursor-pointer shadow-xs"
+                                            style="background-color: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7;">
                                         <i class="fas fa-eye"></i>
                                     </button>
 
@@ -908,7 +910,8 @@
                                     <button type="button"
                                             onclick="saveCutAuditDecision({{ $item['live_item_id'] }}, 'reject')"
                                             title="Corte ERRADO — reprovar e remover vídeo/capa da Loja Online"
-                                            class="p-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs bg-red-50 hover:bg-red-100 text-red-700 border border-red-300">
+                                            class="p-2 rounded-xl text-xs transition cursor-pointer shadow-xs"
+                                            style="background-color: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5;">
                                         <i class="fas fa-ban"></i>
                                     </button>
 
@@ -2057,73 +2060,75 @@
 <!-- ========================================================================= -->
 <!-- MODAL DE AUDITORIA & CONFERÊNCIA VISUAL RÁPIDA (CORTE x ITEM)             -->
 <!-- ========================================================================= -->
-<div id="cut-audit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 p-3 sm:p-6">
-    <div class="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
+<div id="cut-audit-modal"
+     onclick="if(event.target === this) closeCutAuditModal()"
+     style="display: none; position: fixed; inset: 0; z-index: 9999; background-color: rgba(15, 23, 42, 0.82); padding: 16px; align-items: center; justify-content: center;">
+    <div style="background-color: #ffffff; border-radius: 20px; border: 1px solid #e5e7eb; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45); width: 100%; max-width: 1200px; height: 90vh; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;">
         <!-- Header do Modal -->
-        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
+        <div style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb; background-color: #f9fafb; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; flex-shrink: 0;">
             <div>
-                <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
-                    <i class="fas fa-shield-alt text-emerald-600"></i>
+                <h3 style="margin: 0; font-size: 18px; font-weight: 900; color: #111827; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-shield-alt" style="color: #047857;"></i>
                     <span>Auditoria &amp; Conferência Visual — Corte × Item</span>
                 </h3>
-                <p class="text-xs text-gray-600 font-medium mt-0.5">
-                    Detecte cortes trocados (como descompasso em cascata) e remova da Loja em 1 clique antes de publicar.
+                <p style="margin: 4px 0 0 0; font-size: 12px; color: #4b5563; font-weight: 600;">
+                    1) Clique em <strong>Auditar Tudo Rápido</strong> &bull; 2) Veja em vermelho onde o vídeo descompassou do item &bull; 3) Clique em <strong>Remover da Loja</strong> para tirar os cortes errados do site.
                 </p>
             </div>
-            <button type="button" onclick="closeCutAuditModal()" class="w-9 h-9 rounded-xl bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center justify-center cursor-pointer">
+            <button type="button" onclick="closeCutAuditModal()" aria-label="Fechar"
+                    style="width: 36px; height: 36px; border-radius: 10px; background-color: #ffffff; border: 1px solid #d1d5db; color: #1f2937; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; font-weight: 700;">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
         <!-- Barra de Controles de Auditoria -->
-        <div class="px-5 py-3.5 border-b border-gray-200 bg-white space-y-3">
-            <div class="flex flex-wrap items-center gap-2">
+        <div style="padding: 12px 20px; border-bottom: 1px solid #e5e7eb; background-color: #ffffff; flex-shrink: 0;">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
                 <button type="button" id="btn-run-fast-audit" onclick="runBatchCutAudit(false)"
-                        class="px-3.5 py-2 rounded-xl text-xs font-extrabold shadow-xs transition cursor-pointer flex items-center gap-1.5"
-                        style="background-color: #047857; color: #ffffff !important;">
+                        style="padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 800; background-color: #047857; color: #ffffff !important; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="fas fa-bolt"></i>
-                    <span>Auditar Tudo Rápido (Transcrição/Regras)</span>
+                    <span>Auditar Tudo Rápido (Transcrição)</span>
                 </button>
 
                 <button type="button" id="btn-run-vision-audit" onclick="runBatchCutAudit(true)"
-                        class="px-3.5 py-2 rounded-xl text-xs font-extrabold shadow-xs transition cursor-pointer flex items-center gap-1.5"
-                        style="background-color: #4f46e5; color: #ffffff !important;"
-                        title="Gemini analisa a foto da thumbnail + fala dos itens suspeitos/pendentes (até 35 por rodada)">
+                        title="Gemini analisa a foto da thumbnail + fala dos itens suspeitos/pendentes (até 35 por rodada)"
+                        style="padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 800; background-color: #4f46e5; color: #ffffff !important; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                     <i class="fas fa-eye"></i>
                     <span>Auditar Suspeitos c/ Visão IA (Gemini)</span>
                 </button>
 
-                <div class="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-2.5 py-1.5 ml-auto">
-                    <span class="text-[11px] font-extrabold text-red-900">Desvincular da Loja a partir do #:</span>
+                <div style="display: inline-flex; align-items: center; gap: 6px; background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 5px 10px; margin-left: auto;">
+                    <span style="font-size: 11px; font-weight: 800; color: #991b1b;">Tirar da Loja a partir do #:</span>
                     <input type="number" id="audit-unlink-from-code" min="1" placeholder="Ex: 311" value="{{ $auditDrift['first_bad_code'] ?? '' }}"
-                           class="w-16 px-2 py-1 text-xs font-black text-center bg-white border border-red-300 rounded-lg text-gray-900">
+                           style="width: 68px; padding: 4px 6px; font-size: 12px; font-weight: 800; text-align: center; background-color: #ffffff; border: 1px solid #fca5a5; border-radius: 8px; color: #111827;">
                     <button type="button" onclick="unlinkCutsFromStoreBatch('from_code', document.getElementById('audit-unlink-from-code').value)"
-                            class="px-2.5 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer"
-                            style="background-color: #dc2626; color: #ffffff !important;">
+                            style="padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; background-color: #dc2626; color: #ffffff !important; border: none; cursor: pointer;">
                         Remover da Loja
                     </button>
                 </div>
 
                 <button type="button" onclick="unlinkCutsFromStoreBatch('mismatches')"
-                        class="px-3 py-2 rounded-xl text-xs font-extrabold border border-red-300 bg-white hover:bg-red-50 text-red-800 transition cursor-pointer">
-                    <i class="fas fa-trash-alt mr-1"></i> Limpar Todos Incompatíveis da Loja
+                        style="padding: 8px 12px; border-radius: 10px; font-size: 11px; font-weight: 800; border: 1px solid #fca5a5; background-color: #ffffff; color: #991b1b; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>Limpar Todos Incompatíveis</span>
                 </button>
             </div>
 
-            <!-- Status / Feedback + Filtros da Grade -->
-            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
-                <div class="flex flex-wrap items-center gap-1.5">
-                    <button type="button" onclick="setAuditGridFilter('all')" data-grid-filter="all" class="audit-grid-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold cursor-pointer" style="background-color: #111827; color: #ffffff !important;">Todos</button>
-                    <button type="button" onclick="setAuditGridFilter('issues')" data-grid-filter="issues" class="audit-grid-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold cursor-pointer" style="background-color: #fee2e2; color: #991b1b;">❌ Incompatíveis / Conferir</button>
-                    <button type="button" onclick="setAuditGridFilter('ok')" data-grid-filter="ok" class="audit-grid-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold cursor-pointer" style="background-color: #dcfce7; color: #166534;">✅ OK / Aprovados</button>
-                    <button type="button" onclick="setAuditGridFilter('pending')" data-grid-filter="pending" class="audit-grid-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold cursor-pointer" style="background-color: #f3f4f6; color: #374151;">Pendentes</button>
+            <!-- Filtros da Grade + Feedback -->
+            <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6;">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+                    <button type="button" onclick="setAuditGridFilter('all')" data-grid-filter="all" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: none; background-color: #111827; color: #ffffff !important;">Todos</button>
+                    <button type="button" onclick="setAuditGridFilter('issues')" data-grid-filter="issues" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #fca5a5; background-color: #fee2e2; color: #991b1b;">❌ Incompatíveis / Conferir</button>
+                    <button type="button" onclick="setAuditGridFilter('ok')" data-grid-filter="ok" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #86efac; background-color: #dcfce7; color: #166534;">✅ OK / Aprovados</button>
+                    <button type="button" onclick="setAuditGridFilter('pending')" data-grid-filter="pending" class="audit-grid-filter-btn" style="padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid #d1d5db; background-color: #f3f4f6; color: #374151;">Pendentes</button>
                 </div>
-                <div id="audit-modal-feedback" class="text-xs font-bold text-gray-700"></div>
+                <div id="audit-modal-feedback" style="font-size: 12px; font-weight: 700; color: #1f2937;"></div>
             </div>
         </div>
 
-        <!-- Grade Visual de Conferência -->
-        <div id="audit-visual-grid" class="flex-1 overflow-y-auto custom-modal-scroll p-5 bg-gray-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Grade Visual de Conferência (com scroll garantido e altura fixa dos cards) -->
+        <div id="audit-visual-grid" class="custom-modal-scroll"
+             style="flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 18px 20px; background-color: #f3f4f6; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; align-content: start;">
         </div>
     </div>
 </div>
@@ -5293,18 +5298,16 @@
     function openCutAuditModal(initialFilter) {
         const modal = document.getElementById('cut-audit-modal');
         if (!modal) return;
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        document.body.classList.add('overflow-hidden');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
         setAuditGridFilter(initialFilter || 'all');
     }
 
     function closeCutAuditModal() {
         const modal = document.getElementById('cut-audit-modal');
         if (!modal) return;
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-        document.body.classList.remove('overflow-hidden');
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
     }
 
     function setAuditGridFilter(filter) {
@@ -5349,7 +5352,7 @@
         });
 
         if (filtered.length === 0) {
-            grid.innerHTML = '<div class="col-span-full bg-white rounded-2xl border border-gray-200 p-10 text-center text-sm font-bold text-gray-600">Nenhum item encontrado neste filtro.</div>';
+            grid.innerHTML = '<div style="grid-column: 1 / -1; background-color: #ffffff; border-radius: 14px; border: 1px solid #e5e7eb; padding: 36px; text-align: center; font-size: 14px; font-weight: 700; color: #4b5563;">Nenhum item encontrado neste filtro.</div>';
             return;
         }
 
@@ -5357,25 +5360,24 @@
             const st = it.audit_status || '';
             const isBad = st === 'mismatch' || st === 'rejected';
             const isWarn = st === 'warning';
-            const isGood = st === 'ok' || st === 'approved';
 
-            let borderClass = 'border-gray-200';
-            let statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-gray-200 text-gray-800">Pendente</span>';
+            let borderColor = '#d1d5db';
+            let statusBadge = '<span style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; background-color: #e5e7eb; color: #1f2937;">Pendente</span>';
             if (st === 'approved') {
-                borderClass = 'border-green-500';
-                statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#15803d;color:#fff;">✅ Aprovado Loja</span>';
+                borderColor = '#16a34a';
+                statusBadge = '<span style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; background-color: #15803d; color: #ffffff;">✅ Aprovado Loja</span>';
             } else if (st === 'ok') {
-                borderClass = 'border-green-400';
-                statusBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#16a34a;color:#fff;">✅ OK (${it.audit_score ?? 90}%)</span>`;
+                borderColor = '#22c55e';
+                statusBadge = `<span style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; background-color: #16a34a; color: #ffffff;">✅ OK (${it.audit_score ?? 90}%)</span>`;
             } else if (isWarn) {
-                borderClass = 'border-amber-400';
-                statusBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#fef3c7;color:#92400e;border:1px solid #f59e0b;">⚠️ Conferir (${it.audit_score ?? 50}%)</span>`;
+                borderColor = '#f59e0b';
+                statusBadge = `<span style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; background-color: #fef3c7; color: #92400e; border: 1px solid #f59e0b;">⚠️ Conferir (${it.audit_score ?? 50}%)</span>`;
             } else if (st === 'rejected') {
-                borderClass = 'border-red-500';
-                statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#dc2626;color:#fff;">🚫 Removido da Loja</span>';
+                borderColor = '#dc2626';
+                statusBadge = '<span style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; background-color: #dc2626; color: #ffffff;">🚫 Removido da Loja</span>';
             } else if (st === 'mismatch') {
-                borderClass = 'border-red-500';
-                statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#dc2626;color:#fff;">❌ Incompatível!</span>';
+                borderColor = '#dc2626';
+                statusBadge = '<span style="padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; background-color: #dc2626; color: #ffffff;">❌ Vídeo Errado!</span>';
             }
 
             const thumbUrl = (it.thumbnail_candidates && it.thumbnail_candidates.length > 0)
@@ -5389,37 +5391,45 @@
                 'R$ ' + (it.item_price || '0,00')
             ].filter(Boolean).join(' • ');
 
-            const snippetShort = it.transcription_snippet ? String(it.transcription_snippet).slice(0, 150) : 'Sem transcrição neste trecho.';
+            const snippetShort = it.transcription_snippet ? String(it.transcription_snippet).slice(0, 140) : 'Sem transcrição neste trecho.';
             const videoLinkBtn = it.video_cut_url
-                ? `<a href="${escapeHtmlAudit(it.video_cut_url)}" target="_blank" class="px-2 py-1 rounded-lg text-[11px] font-extrabold bg-black/80 text-white hover:bg-black"><i class="fas fa-play mr-1"></i>Ver Corte</a>`
+                ? `<a href="${escapeHtmlAudit(it.video_cut_url)}" target="_blank" style="padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; background-color: rgba(0,0,0,0.82); color: #ffffff !important; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;"><i class="fas fa-play"></i> Ver Vídeo</a>`
                 : '';
 
+            const reasonBoxStyle = isBad
+                ? 'background-color: #fef2f2; color: #991b1b; border: 1px solid #fecaca;'
+                : (isWarn
+                    ? 'background-color: #fffbeb; color: #92400e; border: 1px solid #fde68a;'
+                    : 'background-color: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;');
+
             return `
-                <div class="bg-white rounded-2xl border-2 ${borderClass} overflow-hidden shadow-sm flex flex-col">
-                    <div class="relative aspect-[4/3] bg-gray-900 overflow-hidden">
-                        <img src="${escapeHtmlAudit(thumbUrl)}" alt="#${escapeHtmlAudit(it.codigo_live)}" class="w-full h-full object-contain bg-gray-900" onerror="this.src='https://placehold.co/400x300?text=Sem+Thumbnail'">
-                        <div class="absolute top-2 left-2 flex items-center gap-1.5">
-                            <span class="px-2 py-0.5 rounded-lg text-xs font-black" style="background-color:#4f46e5;color:#fff;">#${escapeHtmlAudit(it.codigo_live)}</span>
+                <div style="background-color: #ffffff; border-radius: 14px; border: 2px solid ${borderColor}; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column;">
+                    <div style="position: relative; width: 100%; height: 220px; background-color: #111827; overflow: hidden; flex-shrink: 0;">
+                        <img src="${escapeHtmlAudit(thumbUrl)}" alt="#${escapeHtmlAudit(it.codigo_live)}" style="width: 100%; height: 100%; object-fit: contain; display: block; background-color: #111827;" onerror="this.src='https://placehold.co/400x300?text=Sem+Thumbnail'">
+                        <div style="position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span style="padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 900; background-color: #4f46e5; color: #ffffff;">#${escapeHtmlAudit(it.codigo_live)}</span>
                             ${statusBadge}
                         </div>
-                        <div class="absolute bottom-2 right-2">${videoLinkBtn}</div>
+                        <div style="position: absolute; bottom: 8px; right: 8px;">${videoLinkBtn}</div>
                     </div>
-                    <div class="p-3.5 flex-1 flex flex-col justify-between gap-2.5">
+                    <div style="padding: 12px 14px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;">
                         <div>
-                            <h4 class="text-sm font-extrabold text-gray-900 leading-snug">${escapeHtmlAudit(it.item_name)}</h4>
-                            <p class="text-xs font-bold text-gray-700 mt-0.5">${escapeHtmlAudit(detailsLine)}</p>
-                            ${it.audit_reason ? `<div class="mt-2 p-2 rounded-lg text-[11px] font-bold ${isBad ? 'bg-red-50 text-red-900 border border-red-200' : (isWarn ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-emerald-50 text-emerald-900 border border-emerald-200')}">${escapeHtmlAudit(it.audit_reason)}</div>` : ''}
-                            <p class="mt-2 text-[11px] text-gray-600 italic leading-snug">"${escapeHtmlAudit(snippetShort)}"</p>
+                            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #6b7280; letter-spacing: 0.04em;">Item Cadastrado</div>
+                            <h4 style="margin: 2px 0 0 0; font-size: 13px; font-weight: 800; color: #111827; line-height: 1.3;">${escapeHtmlAudit(it.item_name)}</h4>
+                            <p style="margin: 3px 0 0 0; font-size: 12px; font-weight: 700; color: #374151;">${escapeHtmlAudit(detailsLine)}</p>
+                            ${it.audit_reason ? `<div style="margin-top: 8px; padding: 7px 9px; border-radius: 8px; font-size: 11px; font-weight: 700; line-height: 1.35; ${reasonBoxStyle}">${escapeHtmlAudit(it.audit_reason)}</div>` : ''}
+                            <div style="margin-top: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #6b7280;">Fala no vídeo:</div>
+                            <p style="margin: 2px 0 0 0; font-size: 11px; color: #4b5563; font-style: italic; line-height: 1.35;">"${escapeHtmlAudit(snippetShort)}"</p>
                         </div>
-                        <div class="grid grid-cols-3 gap-1.5 pt-2 border-t border-gray-100">
-                            <button type="button" onclick="saveCutAuditDecision(${it.live_item_id}, 'approve')" class="py-1.5 px-2 rounded-lg text-[11px] font-extrabold cursor-pointer transition" style="background-color:#15803d;color:#ffffff !important;">
-                                ✓ OK Loja
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding-top: 10px; border-top: 1px solid #f3f4f6;">
+                            <button type="button" onclick="saveCutAuditDecision(${it.live_item_id}, 'approve')" style="padding: 7px 6px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; border: none; background-color: #15803d; color: #ffffff !important;">
+                                ✓ Bateu
                             </button>
-                            <button type="button" onclick="saveCutAuditDecision(${it.live_item_id}, 'reject')" class="py-1.5 px-2 rounded-lg text-[11px] font-extrabold cursor-pointer transition" style="background-color:#dc2626;color:#ffffff !important;">
+                            <button type="button" onclick="saveCutAuditDecision(${it.live_item_id}, 'reject')" style="padding: 7px 6px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; border: none; background-color: #dc2626; color: #ffffff !important;">
                                 ✕ Errado
                             </button>
-                            <button type="button" onclick="runSingleVisionAudit(${it.live_item_id}, this)" class="py-1.5 px-2 rounded-lg text-[11px] font-extrabold cursor-pointer transition" style="background-color:#4f46e5;color:#ffffff !important;">
-                                👁️ Visão IA
+                            <button type="button" onclick="runSingleVisionAudit(${it.live_item_id}, this)" style="padding: 7px 6px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer; border: none; background-color: #4f46e5; color: #ffffff !important;">
+                                👁️ Foto IA
                             </button>
                         </div>
                     </div>
@@ -5447,9 +5457,12 @@
 
         if (card) {
             card.setAttribute('data-audit-status', st);
-            card.classList.remove('border-red-500', 'bg-red-50/40');
+            card.classList.remove('border-red-500');
             if (st === 'mismatch' || st === 'rejected') {
-                card.classList.add('border-red-500', 'bg-red-50/40');
+                card.classList.add('border-red-500');
+                card.style.backgroundColor = '#fef2f2';
+            } else {
+                card.style.backgroundColor = '';
             }
         }
 
@@ -5476,7 +5489,10 @@
         if (reasonBox) {
             if ((st === 'mismatch' || st === 'rejected' || st === 'warning') && reason) {
                 reasonBox.textContent = reason;
-                reasonBox.className = 'mt-1 text-[11px] font-bold px-2 py-1 rounded-lg ' + ((st === 'mismatch' || st === 'rejected') ? 'bg-red-100 text-red-900 border border-red-200' : 'bg-amber-100 text-amber-900 border border-amber-200');
+                reasonBox.classList.remove('hidden');
+                reasonBox.style.cssText = 'font-size: 11px; font-weight: 700; ' + ((st === 'mismatch' || st === 'rejected')
+                    ? 'background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca;'
+                    : 'background-color: #fef3c7; color: #92400e; border: 1px solid #fde68a;');
             } else {
                 reasonBox.classList.add('hidden');
             }
