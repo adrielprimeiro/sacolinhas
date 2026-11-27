@@ -424,23 +424,30 @@ class EvolutionChatController extends Controller
             'user_id' => 'required|integer',
             'target_phone' => 'nullable|string',
             'use_test_phone' => 'nullable|boolean',
+            'pdf_only' => 'nullable|boolean',
         ]);
 
         $liveId = (int) $request->input('live_id');
         $userId = (int) $request->input('user_id');
         $targetPhone = $request->filled('target_phone') ? trim((string) $request->input('target_phone')) : null;
         $useTestPhone = $request->boolean('use_test_phone', true);
+        $pdfOnly = $request->boolean('pdf_only', false);
 
         $res = app(\App\Services\Ai\SeverinoWhatsappAgentService::class)->sendLiveClosingMessage(
             $userId,
             $liveId,
             overridePhone: $targetPhone,
-            useTestPhone: $useTestPhone
+            useTestPhone: $useTestPhone,
+            pdfOnly: $pdfOnly
         );
 
         $pdfInfoTxt = !empty($res['pdf_sent'])
             ? 'PDF da sacolinha: Enviado ✅'
             : ('PDF da sacolinha: Não enviado (' . ($res['pdf_error'] ?? 'aviso') . ')');
+
+        $successMessage = $pdfOnly
+            ? "PDF de Fechamento da Live #{$liveId} enviado para {$res['target_phone']}!\nCliente: {$res['client_name']}\n{$pdfInfoTxt} (Modo Apenas PDF, sem texto/sequência do Severino)"
+            : "Fechamento da Live enviado pelo Severino para {$res['target_phone']}!\nCliente: {$res['client_name']}\nPerfil: {$res['flow_label']}\n{$pdfInfoTxt}\n\nAgora você pode responder no WhatsApp (ou simular no chat) para testar o atendimento + gancho pós-fechamento!";
 
         return response()->json([
             'success' => $res['success'] ?? false,
@@ -448,15 +455,16 @@ class EvolutionChatController extends Controller
             'flow_label' => $res['flow_label'] ?? null,
             'target_phone' => $res['target_phone'] ?? null,
             'pdf_sent' => $res['pdf_sent'] ?? false,
+            'pdf_only' => $pdfOnly,
             'message' => ($res['success'] ?? false)
-                ? "Fechamento da Live enviado pelo Severino para {$res['target_phone']}!\nCliente: {$res['client_name']}\nPerfil: {$res['flow_label']}\n{$pdfInfoTxt}\n\nAgora você pode responder no WhatsApp (ou simular no chat) para testar o atendimento + gancho pós-fechamento!"
+                ? $successMessage
                 : ('Erro ao enviar: ' . ($res['error'] ?? 'Falha desconhecida')),
             'data' => $res,
         ]);
     }
 
     /**
-     * Inicia a fila cadenciada de fechamento (PDF + texto enxuto, intervalo aleatório 5s a 55s)
+     * Inicia a fila cadenciada de fechamento (PDF + opcionalmente texto enxuto, intervalo aleatório 5s a 55s)
      */
     public function startClosingQueue(Request $request)
     {
@@ -471,6 +479,7 @@ class EvolutionChatController extends Controller
             'min_delay' => 'nullable|integer|min:5|max:55',
             'max_delay' => 'nullable|integer|min:5|max:120',
             'limit_test' => 'nullable|integer|min:1|max:50',
+            'pdf_only' => 'nullable|boolean',
         ]);
 
         $res = app(\App\Services\Ai\SeverinoWhatsappAgentService::class)->startClosingQueue(
@@ -481,6 +490,7 @@ class EvolutionChatController extends Controller
                 'min_delay' => $request->input('min_delay', 5),
                 'max_delay' => $request->input('max_delay', 55),
                 'limit_test' => $request->input('limit_test'),
+                'pdf_only' => $request->boolean('pdf_only', true),
             ]
         );
 

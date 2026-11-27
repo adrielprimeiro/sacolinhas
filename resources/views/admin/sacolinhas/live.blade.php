@@ -107,17 +107,21 @@
             </div>
 
             {{-- Painel da Fila Cadenciada de Fechamento da Live (5s–55s + PDF + Anti-Ban) --}}
-            <div id="closing-queue-panel" class="hidden bg-white rounded-xl shadow-sm border-2 border-emerald-200 p-4 space-y-3">
+            <div id="closing-queue-panel" class="hidden bg-white rounded-xl shadow-sm p-4 space-y-3" style="border: 2px solid #86efac;">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h4 class="text-xs font-black text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                            <i class="fas fa-paper-plane text-emerald-600"></i>
-                            Fechamento Cadenciado da Live (PDF + Severino)
-                            <span id="cq-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gray-100 text-gray-700">Pronto</span>
+                            <i class="fas fa-paper-plane" style="color:#16a34a;"></i>
+                            Fechamento Cadenciado da Live (PDF)
+                            <span id="cq-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-extrabold" style="background-color:#f3f4f6; color:#1f2937;">Pronto</span>
                         </h4>
                         <p class="text-[11px] text-gray-600 mt-0.5">
-                            Envia o PDF padrão + resumo financeiro com intervalo humano aleatório de <strong>5s a 55s</strong>, priorizando conversas quentes.
+                            Envia com intervalo humano aleatório de <strong>5s a 55s</strong>, priorizando conversas quentes.
                         </p>
+                        <label class="inline-flex items-center gap-2 mt-2 px-2.5 py-1 rounded-lg cursor-pointer select-none" style="background-color:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a;">
+                            <input type="checkbox" id="cq-pdf-only" checked class="rounded" style="accent-color:#1d4ed8;">
+                            <span class="text-[11px] font-extrabold">Apenas PDF ("Fechamento da Live #XXX", sem texto/sequência do Severino)</span>
+                        </label>
                     </div>
                     <div class="flex flex-wrap items-center gap-2" id="cq-controls">
                         <select id="cq-test-limit" class="text-xs font-bold text-gray-900 bg-gray-50 border border-gray-300 rounded-lg px-2 py-1.5" title="Limite de clientes quando em Modo Teste">
@@ -126,16 +130,23 @@
                             <option value="">Todas as clientes</option>
                         </select>
                         <button type="button" id="btn-cq-start" onclick="iniciarFilaFechamento()"
-                                class="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition">
+                                class="bg-green-600 hover:bg-green-700 text-white font-extrabold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                                style="background-color:#16a34a; color:#ffffff; border:1px solid #15803d;">
                             <i class="fas fa-rocket"></i> Iniciar Fechamento Cadenciado
                         </button>
-                        <button type="button" id="btn-cq-pause" onclick="pausarFilaFechamento()" class="hidden bg-amber-400 hover:bg-amber-500 text-gray-900 font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-sm transition">
+                        <button type="button" id="btn-cq-pause" onclick="pausarFilaFechamento()"
+                                class="hidden font-extrabold px-3 py-2 rounded-lg text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
+                                style="background-color:#f59e0b; color:#111827; border:1px solid #d97706;">
                             <i class="fas fa-pause"></i> Pausar
                         </button>
-                        <button type="button" id="btn-cq-resume" onclick="retomarFilaFechamento()" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-sm transition">
+                        <button type="button" id="btn-cq-resume" onclick="retomarFilaFechamento()"
+                                class="hidden font-extrabold px-3 py-2 rounded-lg text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
+                                style="background-color:#16a34a; color:#ffffff; border:1px solid #15803d;">
                             <i class="fas fa-play"></i> Retomar
                         </button>
-                        <button type="button" id="btn-cq-cancel" onclick="cancelarFilaFechamento()" class="hidden bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 shadow-sm transition">
+                        <button type="button" id="btn-cq-cancel" onclick="cancelarFilaFechamento()"
+                                class="hidden bg-red-600 hover:bg-red-700 text-white font-extrabold px-3 py-2 rounded-lg text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
+                                style="background-color:#dc2626; color:#ffffff; border:1px solid #b91c1c;">
                             <i class="fas fa-stop"></i> Cancelar
                         </button>
                     </div>
@@ -145,15 +156,15 @@
                 <div id="cq-progress-wrap" class="hidden space-y-2 pt-2 border-t border-gray-100">
                     <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
                         <div class="flex flex-wrap items-center gap-2 font-bold">
-                            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900">Enviados: <span id="cq-sent">0</span>/<span id="cq-total">0</span></span>
-                            <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-900">PDFs: <span id="cq-pdfs">0</span></span>
-                            <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-800">Na Fila: <span id="cq-pending">0</span></span>
-                            <span class="px-2 py-0.5 rounded bg-red-100 text-red-900">Falhas: <span id="cq-failed">0</span></span>
+                            <span class="px-2 py-0.5 rounded" style="background-color:#dcfce7; color:#14532d;">Enviados: <span id="cq-sent">0</span>/<span id="cq-total">0</span></span>
+                            <span class="px-2 py-0.5 rounded" style="background-color:#dbeafe; color:#1e3a8a;">PDFs: <span id="cq-pdfs">0</span></span>
+                            <span class="px-2 py-0.5 rounded" style="background-color:#f3f4f6; color:#1f2937;">Na Fila: <span id="cq-pending">0</span></span>
+                            <span class="px-2 py-0.5 rounded" style="background-color:#fee2e2; color:#991b1b;">Falhas: <span id="cq-failed">0</span></span>
                         </div>
                         <div id="cq-next-info" class="text-[11px] font-bold text-indigo-800"></div>
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                        <div id="cq-progress-bar" class="bg-emerald-600 h-2.5 transition-all duration-500" style="width: 0%"></div>
+                        <div id="cq-progress-bar" class="h-2.5 transition-all duration-500" style="width: 0%; background-color:#16a34a;"></div>
                     </div>
                     <details class="text-xs">
                         <summary class="cursor-pointer font-bold text-gray-700 hover:text-indigo-700 select-none">Ver fila de clientes e ordem de prioridade</summary>
@@ -303,12 +314,18 @@
     async function enviarFechamentoSeverino(liveId, userId, btn) {
         const phoneInput = document.getElementById('severino-test-phone');
         const modeSelect = document.getElementById('severino-live-mode');
+        const pdfOnlyChk = document.getElementById('cq-pdf-only');
         const isTest = !modeSelect || modeSelect.value !== 'live';
+        const pdfOnly = pdfOnlyChk ? pdfOnlyChk.checked : true;
         const targetPhone = isTest ? (phoneInput?.value || '5548984136870') : '';
 
+        const tipoTxt = pdfOnly
+            ? `APENAS o PDF ("Fechamento da Live #${liveId}", sem texto/sequência do Severino)`
+            : `PDF + Fechamento Completo com Severino`;
+
         const msgConfirm = isTest
-            ? `Deseja enviar o FECHAMENTO DE FIM DE LIVE desta cliente pelo Severino (Evolution API) para o número de teste (${targetPhone})?\n\nVocê poderá responder no WhatsApp (ou em /admin/chat-evolution) como se fosse a cliente para testar cancelar itens, cotar frete ou pedir o Pix!`
-            : `Deseja enviar o FECHAMENTO DE FIM DE LIVE pelo Severino para o WhatsApp REAL desta cliente?`;
+            ? `Deseja enviar ${tipoTxt} desta cliente para o número de teste (${targetPhone})?`
+            : `Deseja enviar ${tipoTxt} para o WhatsApp REAL desta cliente?`;
 
         if (!confirm(msgConfirm)) return;
 
@@ -327,7 +344,8 @@
                     live_id: liveId,
                     user_id: userId,
                     use_test_phone: isTest,
-                    target_phone: isTest ? targetPhone : null
+                    target_phone: isTest ? targetPhone : null,
+                    pdf_only: pdfOnly
                 })
             });
             const data = await res.json();
@@ -464,15 +482,17 @@
         if (!badge) return;
 
         const statusMap = {
-            idle: { text: 'Pronto', cls: 'bg-gray-100 text-gray-800' },
-            running: { text: '🚀 Enviando (5–55s)', cls: 'bg-emerald-100 text-emerald-900' },
-            paused: { text: '⏸️ Pausado', cls: 'bg-amber-200 text-amber-900' },
-            completed: { text: '✅ Concluído', cls: 'bg-blue-100 text-blue-900' },
-            cancelled: { text: '🛑 Cancelado', cls: 'bg-red-100 text-red-900' },
+            idle: { text: 'Pronto', bg: '#f3f4f6', fg: '#1f2937' },
+            running: { text: '🚀 Enviando (5–55s)', bg: '#dcfce7', fg: '#14532d' },
+            paused: { text: '⏸️ Pausado', bg: '#fef3c7', fg: '#78350f' },
+            completed: { text: '✅ Concluído', bg: '#dbeafe', fg: '#1e3a8a' },
+            cancelled: { text: '🛑 Cancelado', bg: '#fee2e2', fg: '#991b1b' },
         };
         const sm = statusMap[st.status] || statusMap.idle;
         badge.textContent = sm.text;
-        badge.className = `px-2 py-0.5 rounded-full text-[10px] font-extrabold ${sm.cls}`;
+        badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-extrabold';
+        badge.style.backgroundColor = sm.bg;
+        badge.style.color = sm.fg;
 
         const isRunning = st.status === 'running';
         const isPaused = st.status === 'paused';
@@ -495,11 +515,12 @@
         document.getElementById('cq-progress-bar').style.width = `${st.progress_percent ?? 0}%`;
 
         const nextInfo = document.getElementById('cq-next-info');
+        const modeDesc = st.pdf_only ? 'Apenas PDF' : 'PDF + Severino';
         if (isRunning) {
             if (st.current_client) {
-                nextInfo.textContent = `Enviando PDF + Fechamento para ${st.current_client}...`;
+                nextInfo.textContent = `Enviando (${modeDesc}) para ${st.current_client}...`;
             } else if (st.next_in_seconds !== null && st.next_in_seconds !== undefined) {
-                nextInfo.textContent = `Próximo envio em ~${st.next_in_seconds}s (Modo: ${st.mode === 'test' ? '🧪 Teste ' + st.test_phone : '🟢 Real'})`;
+                nextInfo.textContent = `Próximo envio em ~${st.next_in_seconds}s (${modeDesc} • ${st.mode === 'test' ? '🧪 Teste ' + st.test_phone : '🟢 Real'})`;
             } else {
                 nextInfo.textContent = 'Processando próximo item da fila...';
             }
@@ -515,12 +536,12 @@
         if (listEl && Array.isArray(st.items)) {
             listEl.innerHTML = st.items.map(it => {
                 const stBadge = it.status === 'sent'
-                    ? `<span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 font-bold">✅ Enviado${it.pdf_sent ? ' + PDF' : ''} (${it.sent_at || ''})</span>`
+                    ? `<span class="px-1.5 py-0.5 rounded font-bold" style="background-color:#dcfce7; color:#14532d;">✅ Enviado${it.pdf_sent ? ' + PDF' : ''} (${it.sent_at || ''})</span>`
                     : (it.status === 'failed'
-                        ? `<span class="px-1.5 py-0.5 rounded bg-red-100 text-red-900 font-bold">❌ Falha: ${it.error || ''}</span>`
+                        ? `<span class="px-1.5 py-0.5 rounded font-bold" style="background-color:#fee2e2; color:#991b1b;">❌ Falha: ${it.error || ''}</span>`
                         : (it.status === 'skipped'
-                            ? `<span class="px-1.5 py-0.5 rounded bg-gray-200 text-gray-800 font-bold">⏭️ ${it.error || 'Pulado'}</span>`
-                            : `<span class="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold">⏳ Na fila</span>`));
+                            ? `<span class="px-1.5 py-0.5 rounded font-bold" style="background-color:#e5e7eb; color:#1f2937;">⏭️ ${it.error || 'Pulado'}</span>`
+                            : `<span class="px-1.5 py-0.5 rounded font-bold" style="background-color:#e0e7ff; color:#1e1b4b;">⏳ Na fila</span>`));
                 return `
                     <div class="px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] text-gray-900">
                         <div>
@@ -539,13 +560,19 @@
         const phoneInput = document.getElementById('severino-test-phone');
         const modeSelect = document.getElementById('severino-live-mode');
         const limitSel = document.getElementById('cq-test-limit');
+        const pdfOnlyChk = document.getElementById('cq-pdf-only');
         const isTest = !modeSelect || modeSelect.value !== 'live';
+        const pdfOnly = pdfOnlyChk ? pdfOnlyChk.checked : true;
         const targetPhone = isTest ? (phoneInput?.value || '5548984136870') : '';
         const limitVal = (isTest && limitSel && limitSel.value) ? parseInt(limitSel.value, 10) : null;
 
+        const descTipo = pdfOnly
+            ? `APENAS PDF ("Fechamento da Live #${selectedLiveId}", sem texto/sequência do Severino)`
+            : `PDF + Fechamento Completo (Severino)`;
+
         const msg = isTest
-            ? `Iniciar FECHAMENTO CADENCIADO (PDF + Severino, intervalo 5s a 55s) em MODO TESTE?\n\nDestino: ${targetPhone}\nQuantidade: ${limitVal ? limitVal + ' primeiras clientes (por prioridade)' : 'Todas as clientes da live'}`
-            : `ATENÇÃO: Iniciar FECHAMENTO CADENCIADO (PDF + Severino, intervalo 5s a 55s) para o WhatsApp REAL de todas as clientes da Live #${selectedLiveId}?\n\nVocê pode pausar a fila a qualquer momento.`;
+            ? `Iniciar FECHAMENTO CADENCIADO (${descTipo}, intervalo 5s a 55s) em MODO TESTE?\n\nDestino: ${targetPhone}\nQuantidade: ${limitVal ? limitVal + ' primeiras clientes (por prioridade)' : 'Todas as clientes da live'}`
+            : `ATENÇÃO: Iniciar FECHAMENTO CADENCIADO (${descTipo}, intervalo 5s a 55s) para o WhatsApp REAL de todas as clientes da Live #${selectedLiveId}?\n\nVocê pode pausar a fila a qualquer momento.`;
 
         if (!confirm(msg)) return;
 
@@ -562,7 +589,8 @@
                     target_phone: isTest ? targetPhone : null,
                     min_delay: 5,
                     max_delay: 55,
-                    limit_test: limitVal
+                    limit_test: limitVal,
+                    pdf_only: pdfOnly
                 })
             });
             const data = await res.json();

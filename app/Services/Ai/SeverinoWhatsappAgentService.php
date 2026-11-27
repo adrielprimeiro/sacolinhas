@@ -498,13 +498,15 @@ class SeverinoWhatsappAgentService
     }
 
     /**
-     * 2. Envia a mensagem completa de Fechamento de Fim de Live pelo WhatsApp (sem precisar de PDF ou site)
+     * 2. Envia o Fechamento de Fim de Live pelo WhatsApp (PDF padrão + opcionalmente texto financeiro e opções)
+     *    Quando $pdfOnly = true, envia APENAS o PDF com legenda "📄 Fechamento da Live #XXX" sem texto nem sequência do Severino.
      */
     public function sendLiveClosingMessage(
         int $userId,
         int $liveId,
         ?string $overridePhone = null,
-        bool $useTestPhone = false
+        bool $useTestPhone = false,
+        bool $pdfOnly = false
     ): array {
         $config = self::getConfig();
         $user = User::find($userId);
@@ -742,15 +744,16 @@ class SeverinoWhatsappAgentService
                 $user,
                 $mediaPayload,
                 $publicUrl,
-                "📄 Resumo das suas peças da Live #{$liveId}",
+                "📄 Fechamento da Live #{$liveId}",
                 $pdfFileName,
                 [
                     'event_type' => 'live_closing_pdf',
                     'live_id' => $liveId,
                     'flow' => $flow,
                     'is_test' => $isTest,
+                    'pdf_only' => $pdfOnly,
                 ],
-                keepExistingMode: false,
+                keepExistingMode: $pdfOnly,
                 delay: 1400
             );
             $pdfSent = !empty($pdfRes['success']);
@@ -770,6 +773,22 @@ class SeverinoWhatsappAgentService
             ]);
         }
 
+        // Modo "Apenas PDF": não envia o texto de finalização nem aciona a sequência do Severino
+        if ($pdfOnly) {
+            return [
+                'success' => $pdfSent,
+                'error' => $pdfSent ? null : ($pdfError ?: 'Falha ao enviar PDF de fechamento.'),
+                'flow' => $flow,
+                'flow_label' => $resolved['label'],
+                'target_phone' => $cleanPhone,
+                'client_name' => $user->name,
+                'pdf_only' => true,
+                'pdf_sent' => $pdfSent,
+                'pdf_url' => $pdfUrl,
+                'pdf_error' => $pdfError,
+            ];
+        }
+
         // 2) Envia a mensagem de fechamento financeiro + opções
         $res = $this->sendAndRecordSeverinoMessage($cleanPhone, $user, $text, [
             'event_type' => 'live_closing',
@@ -785,6 +804,7 @@ class SeverinoWhatsappAgentService
         $res['flow_label'] = $resolved['label'];
         $res['target_phone'] = $cleanPhone;
         $res['client_name'] = $user->name;
+        $res['pdf_only'] = false;
         $res['pdf_sent'] = $pdfSent;
         $res['pdf_url'] = $pdfUrl;
         $res['pdf_error'] = $pdfError;
@@ -1866,6 +1886,7 @@ class SeverinoWhatsappAgentService
         $minDelay = max(5, min(55, (int) ($options['min_delay'] ?? 5)));
         $maxDelay = max($minDelay, min(120, (int) ($options['max_delay'] ?? 55)));
         $limitTest = !empty($options['limit_test']) ? max(1, (int) $options['limit_test']) : null;
+        $pdfOnly = array_key_exists('pdf_only', $options) ? (bool) $options['pdf_only'] : true;
 
         // Busca clientes da live com itens em sacolinha (em modo teste, faz fallback para todos da live caso já encerrada)
         $userIds = DB::table('sacolinhas')
@@ -1929,7 +1950,7 @@ class SeverinoWhatsappAgentService
                 continue;
             }
 
-            $realPhone = preg_replace('/\D+/', '', (string) ($u->whatsapp ?: ($u->phone ?: $u->telefone_principal)));
+            $realPhone = EvolutionApiService::normalizeBrazilPhone((string) ($u->whatsapp ?: ($u->phone ?: $u->telefone_principal)));
 
             // Calcula prioridade anti-bloqueio (1 = melhor reputação/conversa quente ... 4 = 1º contato)
             if (isset($hotUserIds[$uid])) {
@@ -1946,7 +1967,7 @@ class SeverinoWhatsappAgentService
                 $priorityLabel = '🆕 1º contato / 1ª compra';
             }
 
-            $hasValidPhone = $useTestPhone ? (strlen($targetPhone) >= 8) : (strlen($realPhone) >= 8);
+            $hasValidPhone = $useTestPhone ? (strlen($targetPhone) >= 10) : (strlen($realPhone) >= 10);
 
             $queueItems[] = [
                 'user_id' => (int) $uid,
@@ -1972,6 +1993,7 @@ class SeverinoWhatsappAgentService
             'live_id' => $liveId,
             'status' => 'running',
             'mode' => $useTestPhone ? 'test' : 'live',
+            'pdf_only' => $pdfOnly,
             'test_phone' => $useTestPhone ? $targetPhone : null,
             'min_delay' => $minDelay,
             'max_delay' => $maxDelay,
@@ -2098,12 +2120,14 @@ class SeverinoWhatsappAgentService
 
             $useTestPhone = ($state['mode'] ?? 'test') === 'test';
             $overridePhone = $useTestPhone ? ($state['test_phone'] ?? null) : null;
+            $pdfOnly = !empty($state['pdf_only']);
 
             $res = $this->sendLiveClosingMessage(
                 (int) $entry['user_id'],
                 $liveId,
                 $overridePhone,
-                $useTestPhone
+                $useTestPhone,
+                $pdfOnly
             );
 
             // Recarrega o estado caso o operador tenha clicado em Pausar/Cancelar durante o envio
@@ -2167,6 +2191,7 @@ class SeverinoWhatsappAgentService
             'live_id' => $state['live_id'] ?? null,
             'status' => $state['status'] ?? 'idle',
             'mode' => $state['mode'] ?? 'test',
+            'pdf_only' => !empty($state['pdf_only']),
             'test_phone' => $state['test_phone'] ?? null,
             'min_delay' => $state['min_delay'] ?? 5,
             'max_delay' => $state['max_delay'] ?? 55,
