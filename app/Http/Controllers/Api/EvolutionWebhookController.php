@@ -211,21 +211,66 @@ class EvolutionWebhookController extends Controller
 
     protected function handleMessageUpdate(array $data)
     {
-        $key = $data['key'] ?? [];
-        $messageId = $key['id'] ?? null;
-        $status = strtolower($data['status'] ?? '');
+        // Evolution API v2.2.3 pode enviar um objeto único com `keyId` ou uma lista de updates
+        $updates = array_is_list($data) ? $data : [$data];
 
-        if (!$messageId) return;
+        $rank = [
+            'failed' => 0,
+            'pending' => 1,
+            'sent' => 2,
+            'delivered' => 3,
+            'read' => 4,
+        ];
 
-        $mappedStatus = match ($status) {
-            'delivery_ack', 'delivered' => 'delivered',
-            'read', 'played' => 'read',
-            'error' => 'failed',
-            default => null,
-        };
+        foreach ($updates as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
 
-        if ($mappedStatus) {
-            EvolutionMessage::where('message_id', $messageId)->update(['status' => $mappedStatus]);
+            $key = is_array($item['key'] ?? null) ? $item['key'] : [];
+            $messageId = $item['keyId'] ?? ($key['id'] ?? ($item['messageId'] ?? null));
+            $rawStatus = $item['status'] ?? ($item['update']['status'] ?? '');
+
+            if (!$messageId) {
+                continue;
+            }
+
+            $mappedStatus = null;
+            if (is_numeric($rawStatus)) {
+                $mappedStatus = match ((int) $rawStatus) {
+                    0 => 'failed',
+                    2 => 'sent',
+                    3 => 'delivered',
+                    4, 5 => 'read',
+                    default => null,
+                };
+            } else {
+                $statusStr = strtolower(trim((string) $rawStatus));
+                $mappedStatus = match ($statusStr) {
+                    'server_ack', 'sent' => 'sent',
+                    'delivery_ack', 'delivered' => 'delivered',
+                    'read', 'played' => 'read',
+                    'error', 'failed' => 'failed',
+                    default => null,
+                };
+            }
+
+            if (!$mappedStatus) {
+                continue;
+            }
+
+            $msg = EvolutionMessage::where('message_id', $messageId)->first();
+            if (!$msg) {
+                continue;
+            }
+
+            // Evita downgrade de status (ex: um DELIVERY_ACK atrasado nunca rebaixa READ)
+            $currentRank = $rank[$msg->status] ?? 1;
+            $newRank = $rank[$mappedStatus] ?? 1;
+            if ($mappedStatus === 'failed' || $newRank > $currentRank) {
+                $msg->status = $mappedStatus;
+                $msg->save();
+            }
         }
     }
 

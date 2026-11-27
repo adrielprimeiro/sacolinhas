@@ -378,6 +378,19 @@
 			}
 		}
 
+		function renderStatusTick(status) {
+			if (status === 'read') {
+				return '<i class="bi bi-check2-all" style="color:#0284c7; font-size:1.1em;" title="Lida"></i>';
+			}
+			if (status === 'delivered') {
+				return '<i class="bi bi-check2-all text-secondary" style="font-size:1.1em;" title="Recebida"></i>';
+			}
+			if (status === 'failed') {
+				return '<i class="bi bi-exclamation-circle text-danger" title="Não enviada"></i>';
+			}
+			return '<i class="bi bi-check2 text-secondary" title="Enviada"></i>';
+		}
+
 		// Carrega conversas
 		async function loadConversations() {
 			try {
@@ -429,7 +442,7 @@
 								</div>
 								<div class="d-flex justify-content-between align-items-center mt-1">
 									<div class="conversation-last-message">
-										${c.last_message_direction === 'outbound' ? '<i class="bi bi-check2 text-muted"></i> ' : ''}
+										${c.last_message_direction === 'outbound' ? renderStatusTick(c.last_message_status) + ' ' : ''}
 										${c.last_message_has_media ? '<i class="bi bi-paperclip"></i> Anexo' : escapeHtml(c.last_message_body || '')}
 									</div>
 									${supBadge}
@@ -612,7 +625,7 @@
 								${failNotice}
 								<div class="timestamp">
 									<span>${new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-									${m.direction === 'outbound' ? `<i class="bi ${m.status === 'read' ? 'bi-check2-all text-primary' : (m.status === 'failed' ? 'bi-exclamation-circle text-danger' : 'bi-check2')}"></i>` : ''}
+									${m.direction === 'outbound' ? renderStatusTick(m.status) : ''}
 								</div>
 							</div>
 						</div>
