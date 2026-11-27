@@ -259,7 +259,7 @@ class ConciliacaoService
                 $pedidoId = $payment['external_reference'] ?? null;
                 if ($pedidoId && is_numeric($pedidoId)) {
                     $pedido = \App\Models\Pedido::find($pedidoId);
-                    if ($pedido && $transacao->status === 'pendente') {
+                    if ($pedido && ($transacao->status === 'pendente' || empty($transacao->status) || $transacao->wasRecentlyCreated)) {
                         if ($pedido->status_pagamento !== 'aprovado') {
                             $pedido->status_pagamento = 'aprovado';
                             $pedido->status_pedido    = 'pago';
@@ -303,9 +303,12 @@ class ConciliacaoService
                     ->first();
 
                 if (!$movimentacao) {
-                    // Buscar dinamicamente a conta Mercado Pago
-                    $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
-                    $contaBancariaId = $contaMp ? $contaMp->id : 2;
+                    // Buscar conta da própria transação ou dinamicamente a conta Mercado Pago
+                    $contaBancariaId = $transacaoLock->conta_bancaria_id;
+                    if (!$contaBancariaId) {
+                        $contaMp = \App\Models\ContaBancaria::where('nome', 'like', '%Mercado Pago%')->first();
+                        $contaBancariaId = $contaMp ? $contaMp->id : 2;
+                    }
 
                     // Se não existe a movimentação (baixa), criamos uma agora
                     $movimentacao = \App\Models\Movimentacao::create([
@@ -313,7 +316,7 @@ class ConciliacaoService
                         'conta_bancaria_id' => $contaBancariaId, 
                         'data_pagamento' => $transacaoLock->data,
                         'valor_pago' => $transacaoLock->valor_bruto ?? $transacaoLock->valor,
-                        'forma_pagamento' => 'pix', // Assumindo pix para MP moderno
+                        'forma_pagamento' => ($transacaoLock->origem === 'mercadopago') ? 'mercadopago' : 'pix',
                     ]);
                 }
 
@@ -1008,7 +1011,7 @@ class ConciliacaoService
 
             if ($tipo === 'entrada' && $externalReference && is_numeric($externalReference)) {
                 $pedido = \App\Models\Pedido::find($externalReference);
-                if ($pedido && $transacao->status === 'pendente') {
+                if ($pedido && ($transacao->status === 'pendente' || empty($transacao->status) || $transacao->wasRecentlyCreated)) {
                     if ($pedido->status_pagamento !== 'aprovado') {
                         $pedido->status_pagamento = 'aprovado';
                         $pedido->status_pedido = 'pago';
@@ -1499,15 +1502,42 @@ class ConciliacaoService
                 }
             }
 
-            if (!$hasCandidateMovs && !$hasMatchingRule) {
+            // Identificar se a transação refere-se a um Pedido do sistema (ex: external_reference ou "Pedido #PED-XXXXXX")
+            $pedidoIdRef = null;
+            if ($transacao->tipo === 'entrada') {
+                $payloadRef = $transacao->payload_original['external_reference'] ?? null;
+                if ($payloadRef && is_numeric($payloadRef)) {
+                    $pedidoIdRef = (int) $payloadRef;
+                } elseif (preg_match('/ped-0*([0-9]+)/i', $transacao->descricao, $mPed)) {
+                    $pedidoIdRef = (int) $mPed[1];
+                }
+            }
+
+            $pedidoCandidate = null;
+            if ($pedidoIdRef) {
+                $pedidoCandidate = \App\Models\Pedido::find($pedidoIdRef);
+            }
+
+            if (!$hasCandidateMovs && !$hasMatchingRule && !$pedidoCandidate) {
                 continue;
             }
 
-            $matched = \DB::transaction(function () use ($transacao) {
+            $matched = \DB::transaction(function () use ($transacao, $pedidoCandidate) {
                 // Lock row
                 $tLock = TransacaoExtrato::lockForUpdate()->find($transacao->id);
                 if (!$tLock || $tLock->status === 'conciliado') {
                     return false;
+                }
+
+                // Se houver pedido candidato direto pelo extrato, concilia com prioridade máxima
+                if ($pedidoCandidate) {
+                    if ($pedidoCandidate->status_pagamento !== 'aprovado') {
+                        $pedidoCandidate->status_pagamento = 'aprovado';
+                        $pedidoCandidate->status_pedido    = 'pago';
+                        $pedidoCandidate->save();
+                    }
+                    $this->autoConciliarPedido($tLock, $pedidoCandidate);
+                    return true;
                 }
 
                 $valor = $tLock->valor_bruto ?? $tLock->valor;
