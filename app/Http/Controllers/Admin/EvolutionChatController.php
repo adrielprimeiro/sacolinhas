@@ -22,6 +22,8 @@ class EvolutionChatController extends Controller
 
     public function index()
     {
+        $user = auth()->user();
+        abort_if($user && !empty($user->brecho_id) && (int) $user->brecho_id > 1, 403, 'Funcionalidade exclusiva da Minha Mania (Matriz).');
         return view('admin.chat_evolution');
     }
 

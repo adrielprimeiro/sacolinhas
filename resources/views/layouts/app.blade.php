@@ -284,6 +284,9 @@
                         </a>
                         @endif
 						@if(!$isBrecho && $canAtend)
+                        <a href="{{ route('admin.chat.evolution.index') }}" target="_blank" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.chat.evolution.*') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
+                            <i class="fab fa-whatsapp mr-1.5 text-green-600"></i> Chat Evolution
+                        </a>
                         <a href="{{ route('admin.whatsapp.dashboard') }}" class="block py-1 px-2 rounded text-xs text-gray-600 hover:text-indigo-600 hover:bg-white {{ request()->routeIs('admin.whatsapp.dashboard') ? 'font-bold text-indigo-600 bg-white shadow-xs' : '' }}">
                             <i class="fab fa-whatsapp mr-1.5 text-emerald-500"></i> WhatsApp Dashboard
                         </a>
