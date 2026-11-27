@@ -12,8 +12,8 @@
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
 	<style>
-		body { background-color:#f0f0f0; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; height:100vh; }
-		.chat-layout { width:100%; height:100vh; display:flex; background:#fff; position:relative; overflow:hidden; }
+		body { background-color:#f0f0f0; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; height:100vh; height:100dvh; }
+		.chat-layout { width:100%; height:100vh; height:100dvh; display:flex; background:#fff; position:relative; overflow:hidden; }
 
 		.chat-drawer {
 			width: 360px;
@@ -25,8 +25,11 @@
 		}
 
 		@media (max-width: 768px) {
-			.chat-drawer { width: 100vw; position: fixed; top: 0; left: 0; height: 100vh; z-index: 1000; }
+			.chat-drawer { width: 100vw; position: fixed; top: 0; left: 0; height: 100vh; height: 100dvh; z-index: 1000; }
 			.chat-drawer.hidden-mobile { display: none !important; }
+			.message-bubble { max-width: 88% !important; }
+			.chat-header { padding: 10px 12px !important; flex-wrap: wrap; }
+			.chat-messages { padding: 12px !important; }
 		}
 
 		.sidebar-header { padding:14px 16px; background:#128c7e; color:#fff; font-weight:600; }
@@ -536,6 +539,10 @@
 			if (simArea) simArea.style.display = 'none';
 			updateSupervisionButtonUI(supMode);
 
+			// No celular, esconde a lista lateral para exibir a conversa aberta
+			const drawer = document.getElementById('chatDrawer');
+			if (drawer) drawer.classList.add('hidden-mobile');
+
 			loadMessages(true);
 			loadConversations();
 		}
@@ -682,6 +689,11 @@
 				const phone = (item.getAttribute('data-phone') || '').toLowerCase();
 				item.style.display = (name.includes(term) || phone.includes(term)) ? 'flex' : 'none';
 			});
+		});
+
+		document.getElementById('btnBackToList')?.addEventListener('click', () => {
+			const drawer = document.getElementById('chatDrawer');
+			if (drawer) drawer.classList.remove('hidden-mobile');
 		});
 
 		document.getElementById('btnSendMessage').addEventListener('click', sendMessage);
