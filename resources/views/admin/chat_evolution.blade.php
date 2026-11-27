@@ -71,16 +71,20 @@
 	<div class="chat-layout">
 		<!-- Sidebar de conversas -->
 		<div class="chat-drawer" id="chatDrawer">
-			<div class="sidebar-header d-flex justify-content-between align-items-center">
+			<div class="sidebar-header d-flex justify-content-between align-items-center gap-2">
 				<div class="d-flex align-items-center gap-2">
+					<a href="{{ route('dashboard') }}" class="btn btn-sm btn-outline-light py-0 px-2" style="font-size:0.75rem;" title="Voltar ao Painel">
+						<i class="bi bi-arrow-left"></i>
+					</a>
 					<i class="bi bi-whatsapp fs-5"></i>
-					<span>Chat Evolution</span>
+					<span style="font-size:0.95rem;">Chat Evolution</span>
 				</div>
 				<button class="btn btn-sm btn-outline-light" id="btnQrModal" data-bs-toggle="modal" data-bs-target="#qrModal" title="Conexão WhatsApp">
 					<i class="bi bi-qr-code"></i> Conectar
 				</button>
 			</div>
 
+			@if(auth()->user() && auth()->user()->is_admin == 1 && auth()->user()->role === 'admin_master')
 			<!-- Controle Global do Severino (sincronizado com a Live) -->
 			<div style="background:#f8fafc; border-bottom:1px solid #e2e8f0; padding:8px 12px;">
 				<div class="d-flex align-items-center justify-content-between gap-2 mb-1">
@@ -89,20 +93,29 @@
 					</span>
 					<button type="button" id="btnGlobalAutoReply" onclick="toggleGlobalAutoReply()"
 							class="btn btn-sm py-0 px-2 fw-bold"
-							style="font-size:0.7rem; border-radius:999px; background:#dcfce7; color:#14532d; border:1px solid #86efac;"
-							title="Liga ou pausa as respostas automáticas da IA para TODAS as conversas">
-						🤖 IA Global: ON
+							style="font-size:0.68rem; border-radius:999px; background:#fef3c7; color:#78350f; border:1px solid #fcd34d;"
+							title="ON = novas conversas são atribuídas automaticamente ao Severino. OFF = Severino só responde nas conversas atribuídas a ele!">
+						⏸️ Auto-IA: OFF
 					</button>
 				</div>
 				<select id="globalSeverinoMode" onchange="saveGlobalSeverinoConfig()"
-						class="form-select form-select-sm fw-bold"
-						style="font-size:0.75rem; background:#ffffff; color:#0f172a; border-color:#cbd5e1;"
+						class="form-select form-select-sm fw-bold mb-1"
+						style="font-size:0.74rem; background:#ffffff; color:#0f172a; border-color:#cbd5e1;"
 						title="Define o destino dos disparos ao clicar na cliente na Live">
 					<option value="test">🧪 Live: Enviar p/ Tel Teste</option>
 					<option value="live">🟢 Live: Enviar p/ Cliente Real</option>
 					<option value="off">⚪ Live: Disparo Desativado</option>
 				</select>
+				<select id="filterAssigneeSelector" onchange="renderConversations()"
+						class="form-select form-select-sm fw-semibold"
+						style="font-size:0.74rem; background:#ffffff; color:#0f172a; border-color:#cbd5e1;"
+						title="Filtrar conversas por atendente atribuído">
+					<option value="">👥 Todas as conversas</option>
+					<option value="unassigned">⚪ Não atribuídas</option>
+					<option value="severino">🤖 Severino (IA)</option>
+				</select>
 			</div>
+			@endif
 
 			<div class="conversation-search">
 				<div class="conversation-search-wrap">
@@ -127,14 +140,23 @@
 					</div>
 				</div>
 				<div class="d-flex align-items-center gap-2 flex-wrap">
+					@if(auth()->user() && auth()->user()->is_admin == 1 && auth()->user()->role === 'admin_master')
+					<div id="assignmentControls" style="display:none; align-items:center; gap:6px;">
+						<label for="conversationAssigneeSelector" class="mb-0 d-none d-sm-inline" style="font-size:0.72rem; font-weight:700; color:#e2e8f0;">Atribuído:</label>
+						<select id="conversationAssigneeSelector" onchange="assignEvolutionConversation()"
+								class="form-select form-select-sm fw-bold"
+								style="font-size:0.76rem; background:#ffffff; color:#0f172a; border:1px solid #cbd5e1; max-width:190px; border-radius:999px; padding-left:10px;"
+								title="Atribua a conversa a um atendente ou ao Severino (IA) para ele responder automaticamente">
+							<option value="">⚪ Ninguém</option>
+							<option value="severino">🤖 Severino (IA)</option>
+						</select>
+					</div>
 					<button type="button" id="btnToggleSimulator" onclick="toggleSimulatorBar()"
 							class="btn btn-sm fw-bold" style="display:none; border-radius:999px; font-size:0.75rem; background:#ffffff; color:#312e81; border:1px solid #c7d2fe;"
 							title="Abrir/fechar barra para simular resposta da cliente (testes)">
 						🧪 Simular
 					</button>
-					<button type="button" id="btnToggleSupervision" onclick="toggleConversationSupervision()" 
-							class="btn btn-sm fw-bold" style="display:none; border-radius:999px; font-size:0.78rem;">
-					</button>
+					@endif
 					<div id="connectionStatusIndicator">
 						<span class="badge bg-secondary">Checando...</span>
 					</div>
@@ -391,72 +413,195 @@
 			return '<i class="bi bi-check2 text-secondary" title="Enviada"></i>';
 		}
 
+		const IS_MASTER = @json(auth()->user() && auth()->user()->is_admin == 1 && auth()->user()->role === 'admin_master');
+		let allEvolutionConvs = [];
+		let evolutionAdmins = [];
+
+		async function loadEvolutionAdmins() {
+			if (!IS_MASTER) return;
+			try {
+				const res = await fetch('/admin/chat-evolution/api/admins');
+				evolutionAdmins = await res.json();
+
+				const filterSel = document.getElementById('filterAssigneeSelector');
+				const headerSel = document.getElementById('conversationAssigneeSelector');
+
+				if (filterSel) {
+					const curFilter = filterSel.value;
+					filterSel.innerHTML = '<option value="">👥 Todas as conversas</option><option value="unassigned">⚪ Não atribuídas</option>';
+					evolutionAdmins.forEach(a => {
+						const label = a.is_severino ? a.name : ('👤 ' + a.name.split(' ')[0]);
+						filterSel.innerHTML += `<option value="${escapeHtml(String(a.id))}">${escapeHtml(label)}</option>`;
+					});
+					filterSel.value = curFilter;
+				}
+
+				if (headerSel) {
+					const curVal = activeConv.assignedValue || '';
+					headerSel.innerHTML = '<option value="">⚪ Ninguém</option>';
+					evolutionAdmins.forEach(a => {
+						const label = a.is_severino ? a.name : ('👤 ' + a.name.split(' ')[0]);
+						headerSel.innerHTML += `<option value="${escapeHtml(String(a.id))}">${escapeHtml(label)}</option>`;
+					});
+					headerSel.value = curVal;
+				}
+			} catch (e) {
+				console.warn('Erro ao carregar atendentes:', e);
+			}
+		}
+
+		function updateAssignmentUI(assignedValue) {
+			activeConv.assignedValue = assignedValue || '';
+			const wrap = document.getElementById('assignmentControls');
+			const sel = document.getElementById('conversationAssigneeSelector');
+			if (!wrap || !sel) return;
+			if (!activeConv.remoteJid && !activeConv.userId) {
+				wrap.style.display = 'none';
+				return;
+			}
+			wrap.style.display = 'inline-flex';
+			sel.value = activeConv.assignedValue;
+			if (activeConv.assignedValue === 'severino') {
+				sel.style.background = '#e0e7ff';
+				sel.style.color = '#1e1b4b';
+				sel.style.borderColor = '#818cf8';
+			} else if (activeConv.assignedValue !== '') {
+				sel.style.background = '#fef3c7';
+				sel.style.color = '#78350f';
+				sel.style.borderColor = '#f59e0b';
+			} else {
+				sel.style.background = '#ffffff';
+				sel.style.color = '#0f172a';
+				sel.style.borderColor = '#cbd5e1';
+			}
+		}
+
+		async function assignEvolutionConversation() {
+			if (!IS_MASTER || !activeConv.remoteJid) return;
+			const sel = document.getElementById('conversationAssigneeSelector');
+			const assignee = sel ? sel.value : '';
+			try {
+				const res = await fetch('/admin/chat-evolution/api/assign', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-TOKEN': csrfToken
+					},
+					body: JSON.stringify({
+						remote_jid: activeConv.remoteJid,
+						user_id: activeConv.userId,
+						assignee: assignee
+					})
+				});
+				const data = await res.json();
+				if (data.success) {
+					updateAssignmentUI(data.assignment ? data.assignment.assigned_value : assignee);
+					await loadConversations();
+				} else {
+					alert(data.error || 'Erro ao atribuir conversa.');
+				}
+			} catch (e) {
+				alert('Erro de comunicação ao atribuir conversa.');
+			}
+		}
+
 		// Carrega conversas
 		async function loadConversations() {
 			try {
 				const res = await fetch('/admin/chat-evolution/api/conversations');
 				const convs = await res.json();
-				const list = document.getElementById('conversationList');
-				const prevListScroll = list.scrollTop;
-
-				if (!convs || !convs.length) {
-					list.innerHTML = '<div class="text-center p-4 text-muted">Nenhuma conversa encontrada.</div>';
-					return;
-				}
-
-				const searchInput = document.getElementById('searchContact');
-				const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
-
-				list.innerHTML = convs.map(c => {
-					const isSelected = (activeConv.remoteJid && activeConv.remoteJid === c.remote_jid) 
-						|| (activeConv.userId && activeConv.userId === c.user_id);
-					const name = c.display_name || 'Contato';
-					const initial = name.charAt(0).toUpperCase() || '?';
-					const phone = c.display_phone || '';
-					const matchesSearch = !searchTerm || name.toLowerCase().includes(searchTerm) || phone.toLowerCase().includes(searchTerm);
-					const time = c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-					const unread = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : '';
-					const supMode = c.supervision_mode || 'severino';
-					const supBadge = supMode === 'human'
-						? `<span style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; font-size:0.64rem; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; flex-shrink:0;">👩‍💻 Humano</span>`
-						: `<span style="background:#e0e7ff; color:#1e1b4b; border:1px solid #818cf8; font-size:0.64rem; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; flex-shrink:0;">🤖 Severino</span>`;
-
-					if (isSelected) {
-						updateSupervisionButtonUI(supMode);
-					}
-
-					return `
-						<div class="conversation-item ${isSelected ? 'active' : ''}" 
-							 style="display:${matchesSearch ? 'flex' : 'none'};"
-							 data-user-id="${c.user_id || ''}" 
-							 data-remote-jid="${escapeHtml(c.remote_jid || '')}" 
-							 data-name="${escapeHtml(name)}" 
-							 data-phone="${escapeHtml(phone)}"
-							 data-sup-mode="${supMode}"
-							 onclick="handleConvClick(this)">
-							<div class="conversation-avatar">${initial}</div>
-							<div class="conversation-info">
-								<div class="d-flex justify-content-between align-items-center">
-									<h6 class="conversation-name text-truncate">${escapeHtml(name)}</h6>
-									<span class="conversation-time">${time}</span>
-								</div>
-								<div class="d-flex justify-content-between align-items-center mt-1">
-									<div class="conversation-last-message">
-										${c.last_message_direction === 'outbound' ? renderStatusTick(c.last_message_status) + ' ' : ''}
-										${c.last_message_has_media ? '<i class="bi bi-paperclip"></i> Anexo' : escapeHtml(c.last_message_body || '')}
-									</div>
-									${supBadge}
-								</div>
-							</div>
-							${unread}
-						</div>
-					`;
-				}).join('');
-
-				list.scrollTop = prevListScroll;
+				allEvolutionConvs = Array.isArray(convs) ? convs : [];
+				renderConversations();
 			} catch (e) {
 				console.error(e);
 			}
+		}
+
+		function renderConversations() {
+			const list = document.getElementById('conversationList');
+			const prevListScroll = list.scrollTop;
+
+			if (!allEvolutionConvs || !allEvolutionConvs.length) {
+				list.innerHTML = '<div class="text-center p-4 text-muted">Nenhuma conversa encontrada.</div>';
+				return;
+			}
+
+			const searchInput = document.getElementById('searchContact');
+			const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+			const filterSel = document.getElementById('filterAssigneeSelector');
+			const filterVal = filterSel ? filterSel.value : '';
+
+			const filtered = allEvolutionConvs.filter(c => {
+				const name = (c.display_name || 'Contato').toLowerCase();
+				const phone = (c.display_phone || '').toLowerCase();
+				const assignedName = (c.assigned_admin_name || '').toLowerCase();
+				const assignedVal = String(c.assigned_value || '');
+
+				if (filterVal === 'unassigned' && assignedVal !== '') return false;
+				if (filterVal && filterVal !== 'unassigned' && assignedVal !== filterVal) return false;
+				if (searchTerm && !name.includes(searchTerm) && !phone.includes(searchTerm) && !assignedName.includes(searchTerm)) return false;
+				return true;
+			});
+
+			if (!filtered.length) {
+				list.innerHTML = '<div class="text-center p-4 text-muted small">Nenhuma conversa neste filtro.</div>';
+				return;
+			}
+
+			list.innerHTML = filtered.map(c => {
+				const isSelected = (activeConv.remoteJid && activeConv.remoteJid === c.remote_jid) 
+					|| (activeConv.userId && activeConv.userId === c.user_id);
+				const name = c.display_name || 'Contato';
+				const initial = name.charAt(0).toUpperCase() || '?';
+				const phone = c.display_phone || '';
+				const time = c.last_message_at ? new Date(c.last_message_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+				const unread = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : '';
+				const assignedType = c.assigned_type || 'none';
+				const assignedVal = String(c.assigned_value || '');
+				const assignedName = c.assigned_admin_name || '';
+
+				let assignBadge = '';
+				if (assignedType === 'severino') {
+					assignBadge = `<span style="background:#e0e7ff; color:#1e1b4b; border:1px solid #818cf8; font-size:0.64rem; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; flex-shrink:0;">🤖 Severino</span>`;
+				} else if (assignedType === 'admin' && assignedName) {
+					const firstAdmin = assignedName.split(' ')[0];
+					assignBadge = `<span style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; font-size:0.64rem; font-weight:700; padding:1px 6px; border-radius:999px; white-space:nowrap; flex-shrink:0;">👤 ${escapeHtml(firstAdmin)}</span>`;
+				} else {
+					assignBadge = `<span style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.62rem; font-weight:600; padding:1px 6px; border-radius:999px; white-space:nowrap; flex-shrink:0;">Sem atribuição</span>`;
+				}
+
+				if (isSelected) {
+					updateAssignmentUI(assignedVal);
+				}
+
+				return `
+					<div class="conversation-item ${isSelected ? 'active' : ''}" 
+						 data-user-id="${c.user_id || ''}" 
+						 data-remote-jid="${escapeHtml(c.remote_jid || '')}" 
+						 data-name="${escapeHtml(name)}" 
+						 data-phone="${escapeHtml(phone)}"
+						 data-assigned-value="${escapeHtml(assignedVal)}"
+						 onclick="handleConvClick(this)">
+						<div class="conversation-avatar">${initial}</div>
+						<div class="conversation-info">
+							<div class="d-flex justify-content-between align-items-center">
+								<h6 class="conversation-name text-truncate">${escapeHtml(name)}</h6>
+								<span class="conversation-time">${time}</span>
+							</div>
+							<div class="d-flex justify-content-between align-items-center mt-1 gap-1">
+								<div class="conversation-last-message">
+									${c.last_message_direction === 'outbound' ? renderStatusTick(c.last_message_status) + ' ' : ''}
+									${c.last_message_has_media ? '<i class="bi bi-paperclip"></i> Anexo' : escapeHtml(c.last_message_body || '')}
+								</div>
+								${assignBadge}
+							</div>
+						</div>
+						${unread}
+					</div>
+				`;
+			}).join('');
+
+			list.scrollTop = prevListScroll;
 		}
 
 		function handleConvClick(el) {
@@ -464,11 +609,11 @@
 			const remoteJid = el.getAttribute('data-remote-jid') || null;
 			const name = el.getAttribute('data-name') || '';
 			const phone = el.getAttribute('data-phone') || '';
-			const supMode = el.getAttribute('data-sup-mode') || 'severino';
-			selectConversation(userId, remoteJid, name, phone, supMode);
+			const assignedValue = el.getAttribute('data-assigned-value') || '';
+			selectConversation(userId, remoteJid, name, phone, assignedValue);
 		}
 
-		let globalSeverinoConfig = { mode: 'test', auto_reply: true };
+		let globalSeverinoConfig = { mode: 'test', auto_reply: false };
 
 		async function loadGlobalSeverinoConfig() {
 			try {
@@ -494,12 +639,12 @@
 					btn.style.background = '#dcfce7';
 					btn.style.color = '#14532d';
 					btn.style.borderColor = '#86efac';
-					btn.innerText = '🤖 IA Global: ON';
+					btn.innerText = '🤖 Auto-IA: ON';
 				} else {
 					btn.style.background = '#fef3c7';
 					btn.style.color = '#78350f';
 					btn.style.borderColor = '#fcd34d';
-					btn.innerText = '⏸️ IA Global: OFF';
+					btn.innerText = '⏸️ Auto-IA: OFF';
 				}
 			}
 		}
@@ -540,8 +685,8 @@
 		let lastMessagesRenderSignature = '';
 
 		// Seleciona conversa
-		async function selectConversation(userId, remoteJid, name, phone, supMode = 'severino') {
-			activeConv = { userId, remoteJid, name, phone, supervisionMode: supMode };
+		async function selectConversation(userId, remoteJid, name, phone, assignedValue = '') {
+			activeConv = { userId, remoteJid, name, phone, assignedValue };
 			lastMessagesRenderSignature = '';
 			document.getElementById('currentUserName').innerText = name;
 			document.getElementById('currentUserPhone').innerText = phone;
@@ -550,7 +695,7 @@
 			if (btnSim) btnSim.style.display = 'inline-block';
 			const simArea = document.getElementById('simulatorArea');
 			if (simArea) simArea.style.display = 'none';
-			updateSupervisionButtonUI(supMode);
+			updateAssignmentUI(assignedValue);
 
 			// No celular, esconde a lista lateral para exibir a conversa aberta
 			const drawer = document.getElementById('chatDrawer');
@@ -673,7 +818,6 @@
 				if (data.success) {
 					input.value = '';
 					fileInput.value = '';
-					updateSupervisionButtonUI('human');
 					loadMessages(true);
 					loadConversations();
 				} else {
@@ -695,13 +839,8 @@
 			});
 		}
 
-		document.getElementById('searchContact').addEventListener('input', function(e) {
-			const term = e.target.value.toLowerCase();
-			document.querySelectorAll('.conversation-item').forEach(item => {
-				const name = (item.getAttribute('data-name') || '').toLowerCase();
-				const phone = (item.getAttribute('data-phone') || '').toLowerCase();
-				item.style.display = (name.includes(term) || phone.includes(term)) ? 'flex' : 'none';
-			});
+		document.getElementById('searchContact').addEventListener('input', function() {
+			renderConversations();
 		});
 
 		document.getElementById('btnBackToList')?.addEventListener('click', () => {
@@ -728,6 +867,7 @@
 
 		// Inicialização
 		checkStatus();
+		loadEvolutionAdmins();
 		loadGlobalSeverinoConfig();
 		loadConversations();
 		setInterval(checkStatus, 15000);

@@ -185,6 +185,142 @@ class SeverinoWhatsappAgentService
     }
 
     /**
+     * Consulta a atribuição oficial da conversa no Chat Evolution (tabela evolution_chat_assignments):
+     * - assigned_type: 'none' | 'admin' | 'severino'
+     */
+    public static function getConversationAssignment(?string $remoteJid, ?int $userId = null): array
+    {
+        $default = [
+            'assigned_type' => 'none',
+            'assigned_admin_id' => null,
+            'assigned_admin_name' => null,
+            'assigned_value' => '',
+        ];
+
+        try {
+            if (!DB::getSchemaBuilder()->hasTable('evolution_chat_assignments')) {
+                return $default;
+            }
+
+            $row = null;
+            if ($remoteJid) {
+                $row = DB::table('evolution_chat_assignments as eca')
+                    ->leftJoin('users as u', 'u.id', '=', 'eca.assigned_admin_id')
+                    ->where('eca.remote_jid', $remoteJid)
+                    ->select('eca.assigned_type', 'eca.assigned_admin_id', 'u.name as assigned_admin_name')
+                    ->first();
+            }
+
+            if (!$row && $remoteJid) {
+                $phoneKey = self::normalizePhoneKey($remoteJid);
+                if ($phoneKey && strlen($phoneKey) >= 8) {
+                    $row = DB::table('evolution_chat_assignments as eca')
+                        ->leftJoin('users as u', 'u.id', '=', 'eca.assigned_admin_id')
+                        ->where('eca.remote_jid', 'like', "%{$phoneKey}%")
+                        ->select('eca.assigned_type', 'eca.assigned_admin_id', 'u.name as assigned_admin_name')
+                        ->orderByDesc('eca.id')
+                        ->first();
+                }
+            }
+
+            if (!$row && $userId) {
+                $row = DB::table('evolution_chat_assignments as eca')
+                    ->leftJoin('users as u', 'u.id', '=', 'eca.assigned_admin_id')
+                    ->where('eca.user_id', $userId)
+                    ->select('eca.assigned_type', 'eca.assigned_admin_id', 'u.name as assigned_admin_name')
+                    ->orderByDesc('eca.id')
+                    ->first();
+            }
+
+            if (!$row) {
+                return $default;
+            }
+
+            $type = in_array($row->assigned_type, ['admin', 'severino'], true) ? $row->assigned_type : 'none';
+            return [
+                'assigned_type' => $type,
+                'assigned_admin_id' => $type === 'admin' ? ($row->assigned_admin_id ? (int) $row->assigned_admin_id : null) : null,
+                'assigned_admin_name' => $type === 'severino'
+                    ? '🤖 Severino (IA)'
+                    : ($type === 'admin' ? ($row->assigned_admin_name ?: null) : null),
+                'assigned_value' => $type === 'severino'
+                    ? 'severino'
+                    : ($type === 'admin' && $row->assigned_admin_id ? (string) $row->assigned_admin_id : ''),
+            ];
+        } catch (\Throwable $e) {
+            return $default;
+        }
+    }
+
+    /**
+     * Atribui uma conversa do Chat Evolution para: 'none' (Ninguém), 'severino' (IA), ou 'admin' (Atendente humano).
+     */
+    public static function assignConversation(
+        string $remoteJid,
+        ?int $userId,
+        string $assignedType,
+        ?int $assignedAdminId = null,
+        ?int $assignedByAdminId = null
+    ): array {
+        $type = in_array($assignedType, ['none', 'admin', 'severino'], true) ? $assignedType : 'none';
+        if ($type === 'admin' && !$assignedAdminId) {
+            $type = 'none';
+        }
+
+        if (DB::getSchemaBuilder()->hasTable('evolution_chat_assignments')) {
+            DB::table('evolution_chat_assignments')->updateOrInsert(
+                ['remote_jid' => $remoteJid],
+                [
+                    'user_id' => $userId,
+                    'assigned_type' => $type,
+                    'assigned_admin_id' => $type === 'admin' ? $assignedAdminId : null,
+                    'assigned_by_admin_id' => $assignedByAdminId,
+                    'assigned_at' => $type === 'none' ? null : now(),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+        }
+
+        // Mantém supervision mode sincronizado
+        self::setSupervisionMode(
+            $remoteJid,
+            $userId,
+            $type === 'severino' ? 'severino' : 'human',
+            $type === 'severino' ? null : 'Conversa atribuída fora do Severino'
+        );
+
+        return self::getConversationAssignment($remoteJid, $userId);
+    }
+
+    /**
+     * Define se o Severino PODE responder automaticamente a esta conversa:
+     * - Se atribuída explicitamente ao Severino ('severino') -> SIM (pode responder!)
+     * - Se atribuída a um humano ('admin') -> NÃO
+     * - Se não atribuída ('none') -> só responde se 'auto_reply' global estiver ON (e nesse caso assume a atribuição)
+     */
+    public static function canSeverinoReply(?string $remoteJid, ?int $userId = null): bool
+    {
+        $assignment = self::getConversationAssignment($remoteJid, $userId);
+        if ($assignment['assigned_type'] === 'severino') {
+            return true;
+        }
+        if ($assignment['assigned_type'] === 'admin') {
+            return false;
+        }
+
+        $config = self::getConfig();
+        if (!empty($config['auto_reply'])) {
+            if ($remoteJid) {
+                self::assignConversation($remoteJid, $userId, 'severino', null, null);
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Registra qual cliente/live está ativo para este telefone (em teste ou em produção)
      */
     public static function setTestContext(string $testPhone, int $userId, int $liveId, bool $isTest = true): void
@@ -821,11 +957,6 @@ class SeverinoWhatsappAgentService
         string $messageBody,
         bool $forceReplyEvenIfHumanMode = false
     ): array {
-        $config = self::getConfig();
-        if (!$forceReplyEvenIfHumanMode && empty($config['auto_reply'])) {
-            return ['handled' => false, 'reason' => 'auto_reply_disabled'];
-        }
-
         // Verifica se este telefone está em um contexto de teste (ex: 5548984136870 simulando uma cliente da live)
         $testCtx = self::getTestContextForPhone($remoteJid);
         $liveId = null;
@@ -834,9 +965,11 @@ class SeverinoWhatsappAgentService
             $liveId = !empty($testCtx['live_id']) ? (int) $testCtx['live_id'] : null;
         }
 
-        $supMode = self::getSupervisionMode($remoteJid, $userId);
-        if (!$forceReplyEvenIfHumanMode && $supMode === 'human') {
-            return ['handled' => false, 'reason' => 'human_supervision_active'];
+        // Regra oficial de atribuição:
+        // Se a conversa está atribuída ao Severino -> pode responder!
+        // Se está com humano ou sem atribuição (com Auto-Atribuir IA OFF) -> não responde!
+        if (!$forceReplyEvenIfHumanMode && !self::canSeverinoReply($remoteJid, $userId)) {
+            return ['handled' => false, 'reason' => 'not_assigned_to_severino'];
         }
 
         $user = $userId ? User::find($userId) : null;
@@ -2231,8 +2364,11 @@ class SeverinoWhatsappAgentService
         $canonicalJid = $res['remote_jid'] ?? (str_contains($toPhoneOrJid, '@') ? $toPhoneOrJid : (preg_replace('/\D+/', '', $toPhoneOrJid) . '@s.whatsapp.net'));
         $digits = preg_replace('/\D+/', '', explode('@', $canonicalJid)[0] ?? '');
 
-        if (!$keepExistingMode) {
-            self::setSupervisionMode($canonicalJid, $user->id, 'severino');
+        if (!$keepExistingMode && !empty(self::getConfig()['auto_reply'])) {
+            $curAssign = self::getConversationAssignment($canonicalJid, $user->id);
+            if ($curAssign['assigned_type'] === 'none') {
+                self::assignConversation($canonicalJid, $user->id, 'severino', null, null);
+            }
         }
 
         $pushName = $user->name;
@@ -2287,8 +2423,11 @@ class SeverinoWhatsappAgentService
         $canonicalJid = $res['remote_jid'] ?? (str_contains($toPhoneOrJid, '@') ? $toPhoneOrJid : (preg_replace('/\D+/', '', $toPhoneOrJid) . '@s.whatsapp.net'));
         $digits = preg_replace('/\D+/', '', explode('@', $canonicalJid)[0] ?? '');
 
-        if (!$keepExistingMode) {
-            self::setSupervisionMode($canonicalJid, $user->id, 'severino');
+        if (!$keepExistingMode && !empty(self::getConfig()['auto_reply'])) {
+            $curAssign = self::getConversationAssignment($canonicalJid, $user->id);
+            if ($curAssign['assigned_type'] === 'none') {
+                self::assignConversation($canonicalJid, $user->id, 'severino', null, null);
+            }
         }
 
         $pushName = $user->name;

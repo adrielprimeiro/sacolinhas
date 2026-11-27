@@ -175,9 +175,14 @@ class EvolutionWebhookController extends Controller
             $fromMe = false;
         }
 
-        // Se um operador humano respondeu manualmente pelo celular para outro contato, pausa o Severino automaticamente
+        // Se um operador humano respondeu manualmente pelo celular para outro contato, remove do Severino automaticamente
         if ($fromMe && !$isSelfChatTestReply) {
-            \App\Services\Ai\SeverinoWhatsappAgentService::setSupervisionMode($remoteJid, $user?->id, 'human', 'Operador respondeu pelo celular');
+            $curAssign = \App\Services\Ai\SeverinoWhatsappAgentService::getConversationAssignment($remoteJid, $user?->id);
+            if (($curAssign['assigned_type'] ?? 'none') === 'severino') {
+                \App\Services\Ai\SeverinoWhatsappAgentService::assignConversation($remoteJid, $user?->id, 'none', null, null);
+            } else {
+                \App\Services\Ai\SeverinoWhatsappAgentService::setSupervisionMode($remoteJid, $user?->id, 'human', 'Operador respondeu pelo celular');
+            }
         }
 
         EvolutionMessage::create([

@@ -67,10 +67,18 @@ class EvolutionChatController extends Controller
     }
 
     /**
-     * Lista conversas
+     * Lista conversas (com atribuição igual ao outro chat — inclui Severino IA!)
      */
     public function getConversations()
     {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
+        $authAdmin = auth()->user();
+        $isMaster = $authAdmin && $authAdmin->is_admin == 1 && $authAdmin->role === 'admin_master';
+        $hasAssignTable = DB::getSchemaBuilder()->hasTable('evolution_chat_assignments');
+
         // Identificador único da conversa: remote_jid (ou fallback para user_id/from)
         $subLastMessage = DB::table('evolution_messages')
             ->select(
@@ -79,24 +87,43 @@ class EvolutionChatController extends Controller
             )
             ->groupBy(DB::raw("COALESCE(remote_jid, CAST(user_id AS CHAR), `from`)"));
 
-        $conversations = DB::table('evolution_messages as em')
+        $query = DB::table('evolution_messages as em')
             ->joinSub($subLastMessage, 'last_msg', 'em.id', '=', 'last_msg.last_message_id')
-            ->leftJoin('users', 'users.id', '=', 'em.user_id')
-            ->select(
-                'em.id as message_id',
-                'em.user_id',
-                'em.remote_jid',
-                'em.push_name',
-                'em.from',
-                'em.to',
-                'users.name as user_name',
-                'users.whatsapp as user_whatsapp',
-                'em.body as last_message_body',
-                'em.created_at as last_message_at',
-                'em.direction as last_message_direction',
-                'em.status as last_message_status',
-                DB::raw("CASE WHEN em.media_url IS NOT NULL AND em.media_url != '' THEN 1 ELSE 0 END as last_message_has_media")
-            )
+            ->leftJoin('users', 'users.id', '=', 'em.user_id');
+
+        $selectCols = [
+            'em.id as message_id',
+            'em.user_id',
+            'em.remote_jid',
+            'em.push_name',
+            'em.from',
+            'em.to',
+            'users.name as user_name',
+            'users.whatsapp as user_whatsapp',
+            'em.body as last_message_body',
+            'em.created_at as last_message_at',
+            'em.direction as last_message_direction',
+            'em.status as last_message_status',
+            DB::raw("CASE WHEN em.media_url IS NOT NULL AND em.media_url != '' THEN 1 ELSE 0 END as last_message_has_media"),
+        ];
+
+        if ($hasAssignTable) {
+            $query->leftJoin('evolution_chat_assignments as eca', 'eca.remote_jid', '=', 'em.remote_jid')
+                  ->leftJoin('users as assigned_admin', 'assigned_admin.id', '=', 'eca.assigned_admin_id');
+            $selectCols[] = 'eca.assigned_type';
+            $selectCols[] = 'eca.assigned_admin_id';
+            $selectCols[] = 'assigned_admin.name as assigned_admin_name';
+
+            // Atendente não-master só enxerga conversas atribuídas a ele (idêntico ao outro chat)
+            if (!$isMaster) {
+                $query->where('eca.assigned_type', 'admin')
+                      ->where('eca.assigned_admin_id', $authAdmin->id);
+            }
+        } elseif (!$isMaster) {
+            return response()->json([]);
+        }
+
+        $conversations = $query->select($selectCols)
             ->orderBy('em.created_at', 'desc')
             ->get();
 
@@ -144,13 +171,118 @@ class EvolutionChatController extends Controller
             }
 
             $conv->unread_count = $unreadQuery->count();
-            $conv->supervision_mode = \App\Services\Ai\SeverinoWhatsappAgentService::getSupervisionMode(
-                $conv->remote_jid,
-                $conv->user_id ? (int) $conv->user_id : null
-            );
+
+            $assignedType = in_array($conv->assigned_type ?? '', ['admin', 'severino'], true) ? $conv->assigned_type : 'none';
+            $conv->assigned_type = $assignedType;
+            $conv->assigned_admin_id = $assignedType === 'admin' && !empty($conv->assigned_admin_id) ? (int) $conv->assigned_admin_id : null;
+            $conv->assigned_admin_name = $assignedType === 'severino'
+                ? '🤖 Severino (IA)'
+                : ($assignedType === 'admin' ? ($conv->assigned_admin_name ?? null) : null);
+            $conv->assigned_value = $assignedType === 'severino'
+                ? 'severino'
+                : ($assignedType === 'admin' && $conv->assigned_admin_id ? (string) $conv->assigned_admin_id : '');
+            $conv->supervision_mode = $assignedType === 'severino' ? 'severino' : 'human';
         });
 
         return response()->json($conversations);
+    }
+
+    /**
+     * Lista atendentes disponíveis para atribuição no Chat Evolution (inclui Severino IA no topo!)
+     */
+    public function getAdmins()
+    {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
+        $admins = User::where('is_admin', 1)
+            ->whereIn('role', ['admin', 'admin_master'])
+            ->where(function ($q) {
+                $q->whereNull('brecho_id')->orWhere('brecho_id', 1);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'role'])
+            ->map(fn($u) => [
+                'id' => (string) $u->id,
+                'name' => $u->name,
+                'role' => $u->role,
+                'is_severino' => false,
+            ])
+            ->values()
+            ->toArray();
+
+        array_unshift($admins, [
+            'id' => 'severino',
+            'name' => '🤖 Severino (IA)',
+            'role' => 'ai_agent',
+            'is_severino' => true,
+        ]);
+
+        return response()->json($admins);
+    }
+
+    /**
+     * Atribui uma conversa do Chat Evolution a um atendente humano, ao Severino (IA) ou a ninguém
+     */
+    public function assignConversation(Request $request)
+    {
+        if ($resp = $this->ensureMatrizOnly()) {
+            return $resp;
+        }
+
+        $authAdmin = auth()->user();
+        if (!$authAdmin || $authAdmin->is_admin != 1 || $authAdmin->role !== 'admin_master') {
+            return response()->json(['success' => false, 'error' => 'Apenas o administrador master pode atribuir conversas.'], 403);
+        }
+
+        $request->validate([
+            'remote_jid' => 'required|string|max:120',
+            'user_id' => 'nullable|integer',
+            'assignee' => 'nullable|string|max:40',
+        ]);
+
+        $remoteJid = trim((string) $request->input('remote_jid'));
+        $userId = $request->input('user_id') ? (int) $request->input('user_id') : null;
+        $assignee = trim((string) $request->input('assignee', ''));
+
+        if ($assignee === 'severino') {
+            $result = \App\Services\Ai\SeverinoWhatsappAgentService::assignConversation(
+                $remoteJid,
+                $userId,
+                'severino',
+                null,
+                $authAdmin->id
+            );
+        } elseif ($assignee !== '' && ctype_digit($assignee)) {
+            $adminId = (int) $assignee;
+            if (!User::where('id', $adminId)->exists()) {
+                return response()->json(['success' => false, 'error' => 'Atendente não encontrado.'], 422);
+            }
+            $result = \App\Services\Ai\SeverinoWhatsappAgentService::assignConversation(
+                $remoteJid,
+                $userId,
+                'admin',
+                $adminId,
+                $authAdmin->id
+            );
+        } else {
+            $result = \App\Services\Ai\SeverinoWhatsappAgentService::assignConversation(
+                $remoteJid,
+                $userId,
+                'none',
+                null,
+                $authAdmin->id
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'assignment' => $result,
+            'message' => $result['assigned_type'] === 'severino'
+                ? 'Conversa atribuída ao Severino (IA) — ele já pode responder automaticamente!'
+                : 'Atribuição atualizada com sucesso.',
+        ]);
     }
 
     /**
@@ -167,6 +299,16 @@ class EvolutionChatController extends Controller
                 $userId = (int) $identifier;
             } else {
                 $remoteJid = $identifier;
+            }
+        }
+
+        // Atendente não-master só pode ler conversas atribuídas a ele
+        $authAdmin = auth()->user();
+        $isMaster = $authAdmin && $authAdmin->is_admin == 1 && $authAdmin->role === 'admin_master';
+        if (!$isMaster) {
+            $assign = \App\Services\Ai\SeverinoWhatsappAgentService::getConversationAssignment($remoteJid, $userId ? (int) $userId : null);
+            if ($assign['assigned_type'] !== 'admin' || (int) $assign['assigned_admin_id'] !== (int) $authAdmin->id) {
+                return response()->json(['error' => 'Acesso negado. Conversa não atribuída a você.'], 403);
             }
         }
 
@@ -281,12 +423,13 @@ class EvolutionChatController extends Controller
         $canonicalJid = $res['remote_jid'] ?? $targetJid;
         $failedReason = ($status === 'failed') ? ($res['error'] ?? 'Falha no envio') : null;
 
-        // Ao enviar mensagem manual pelo painel, o operador assume a conversa (pausa o Severino)
-        \App\Services\Ai\SeverinoWhatsappAgentService::setSupervisionMode(
+        // Ao enviar mensagem manual pelo painel, atribui a conversa ao operador que respondeu (retira do Severino)
+        \App\Services\Ai\SeverinoWhatsappAgentService::assignConversation(
             $canonicalJid,
             $user?->id,
-            'human',
-            'Operador respondeu manualmente pelo painel'
+            $adminId ? 'admin' : 'none',
+            $adminId ?: null,
+            $adminId ?: null
         );
 
         $msg = EvolutionMessage::create([
@@ -329,11 +472,19 @@ class EvolutionChatController extends Controller
             $desiredMode = ($current === 'severino') ? 'human' : 'severino';
         }
 
-        \App\Services\Ai\SeverinoWhatsappAgentService::setSupervisionMode($remoteJid, $userId, $desiredMode);
+        $desiredType = ($desiredMode === 'severino') ? 'severino' : 'admin';
+        $assignRes = \App\Services\Ai\SeverinoWhatsappAgentService::assignConversation(
+            $remoteJid,
+            $userId,
+            $desiredType,
+            $desiredType === 'admin' ? auth()->id() : null,
+            auth()->id()
+        );
 
         return response()->json([
             'success' => true,
             'supervision_mode' => $desiredMode,
+            'assignment' => $assignRes,
         ]);
     }
 

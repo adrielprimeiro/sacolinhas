@@ -798,6 +798,8 @@ Route::prefix('admin')->middleware(['auth', 'check.admin'])->group(function () {
     Route::get('/chat-evolution/api/refresh-qr', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'refreshQr']);
     Route::post('/chat-evolution/api/logout', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'logout']);
     Route::get('/chat-evolution/api/conversations', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getConversations']);
+    Route::get('/chat-evolution/api/admins', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getAdmins']);
+    Route::post('/chat-evolution/api/assign', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'assignConversation']);
     Route::get('/chat-evolution/api/messages/{userId?}', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'getMessages']);
     Route::post('/chat-evolution/api/send', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'sendMessage']);
     Route::post('/chat-evolution/api/supervision', [\App\Http\Controllers\Admin\EvolutionChatController::class, 'toggleSupervision']);
