@@ -123,6 +123,9 @@
                 </button>
             </div>
 
+            @php
+                $isMatrizClient = empty($displayUser?->brecho_id) || (int) $displayUser->brecho_id === 1;
+            @endphp
             <nav class="p-4">
                 <a href="{{ route('portal.dashboard') }}"
                    class="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.dashboard') ? 'bg-gray-100 font-semibold' : '' }}">
@@ -130,22 +133,24 @@
                     <span>Painel</span>
                 </a>
 
-                <a href="{{ route('portal.perfil') }}"
-                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.perfil') ? 'bg-gray-100 font-semibold' : '' }}">
-                    <i class="fas fa-user text-gray-500 w-5"></i>
-                    <span>Meu Perfil</span>
+                @if($isMatrizClient)
+                <a href="{{ route('loja.index') }}"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md bg-pink-50 hover:bg-pink-100 text-pink-700 font-bold {{ request()->routeIs('loja.*') ? 'ring-1 ring-pink-300' : '' }}">
+                    <i class="fas fa-store text-pink-600 w-5"></i>
+                    <span>Loja Online</span>
+                </a>
+                @endif
+
+                <a href="{{ route('portal.sacolinha') }}"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.sacolinha') ? 'bg-gray-100 font-semibold' : '' }}">
+                    <i class="fas fa-shopping-bag text-gray-500 w-5"></i>
+                    <span>Minha Sacolinha</span>
                 </a>
 
                 <a href="{{ route('portal.pedidos') }}"
                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.pedidos') ? 'bg-gray-100 font-semibold' : '' }}">
                     <i class="fas fa-receipt text-gray-500 w-5"></i>
                     <span>Meus Pedidos</span>
-                </a>
-						
-                <a href="{{ route('portal.sacolinha') }}"
-                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.sacolinha') ? 'bg-gray-100 font-semibold' : '' }}">
-                    <i class="fas fa-shopping-bag text-gray-500 w-5"></i>
-                    <span>Minha Sacolinha</span>
                 </a>
 
                 <a href="{{ route('portal.movimentacao') }}"
@@ -154,16 +159,16 @@
                     <span>Minha Carteira</span>
                 </a>
 
+                <a href="{{ route('portal.perfil') }}"
+                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.perfil') ? 'bg-gray-100 font-semibold' : '' }}">
+                    <i class="fas fa-user text-gray-500 w-5"></i>
+                    <span>Meu Perfil</span>
+                </a>
+
                 <a href="{{ route('portal.avaliacoes') }}"
                    class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('portal.avaliacoes') ? 'bg-gray-100 font-semibold' : '' }}">
                     <i class="fas fa-star text-gray-500 w-5"></i>
                     <span>Minhas Avaliações</span>
-                </a>
-
-                <a href="{{ route('loja.index') }}"
-                   class="mt-1 flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-50 {{ request()->routeIs('loja.index') ? 'bg-gray-100 font-semibold' : '' }}">
-                    <i class="fas fa-store text-gray-500 w-5"></i>
-                    <span>Loja</span>
                 </a>
 				
 				<a href="{{ url('/dashboard-pontuacoes') }}"
@@ -239,6 +244,22 @@
                 <span class="text-[11px] mt-0.5 tracking-tight">Início</span>
             </a>
 
+            @if($isMatrizClient)
+            <!-- Loja Online -->
+            <a href="{{ route('loja.index') }}"
+               class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('loja.*') ? 'text-pink-600 font-bold' : 'text-gray-600 hover:text-gray-900' }}">
+                <i class="fas fa-store text-lg text-pink-600"></i>
+                <span class="text-[11px] mt-0.5 tracking-tight font-semibold">Loja</span>
+            </a>
+            @else
+            <!-- Carteira (parceiros) -->
+            <a href="{{ route('portal.movimentacao') }}"
+               class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.movimentacao') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
+                <i class="fas fa-wallet text-lg"></i>
+                <span class="text-[11px] mt-0.5 tracking-tight">Carteira</span>
+            </a>
+            @endif
+
             <!-- Sacolinha -->
             <a href="{{ route('portal.sacolinha') }}"
                class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.sacolinha') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
@@ -251,13 +272,6 @@
                class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.pedidos') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
                 <i class="fas fa-receipt text-lg"></i>
                 <span class="text-[11px] mt-0.5 tracking-tight">Pedidos</span>
-            </a>
-
-            <!-- Carteira -->
-            <a href="{{ route('portal.movimentacao') }}"
-               class="flex flex-col items-center justify-center py-1 active-tap {{ request()->routeIs('portal.movimentacao') ? 'text-pink-600 font-bold' : 'text-gray-500 hover:text-gray-900' }}">
-                <i class="fas fa-wallet text-lg"></i>
-                <span class="text-[11px] mt-0.5 tracking-tight">Carteira</span>
             </a>
 
             <!-- Mani IA -->

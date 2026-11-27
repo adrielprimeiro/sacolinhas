@@ -127,6 +127,26 @@
     </div>
     @endif
 
+    @if(($itens->count() ?? 0) > 0 && (empty(auth()->user()->brecho_id) || (int) auth()->user()->brecho_id === 1))
+    <!-- Banner Aproveite o Mesmo Frete -->
+    <div class="bg-pink-50 border border-pink-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-start gap-3">
+            <div class="w-9 h-9 rounded-lg bg-pink-600 text-white flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-store text-sm"></i>
+            </div>
+            <div>
+                <p class="text-sm font-bold text-gray-900">Quer aproveitar o mesmo frete?</p>
+                <p class="text-xs text-gray-700 mt-0.5">Adicione peças da nossa Loja Online nesta sacolinha antes de fechar o pedido!</p>
+            </div>
+        </div>
+        <a href="{{ route('loja.index') }}"
+           class="shrink-0 inline-flex items-center justify-center gap-1.5 bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold py-2.5 px-4 rounded-lg transition">
+            <span>Ver Loja Online</span>
+            <i class="fas fa-arrow-right text-[10px]"></i>
+        </a>
+    </div>
+    @endif
+
     <!-- Feedback -->
     @if(session('success'))
         <div class="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm">
@@ -159,9 +179,16 @@
         </div>
 
         @if(($itens->count() ?? 0) === 0)
-            <div class="p-6 text-center">
-                <p class="text-sm font-semibold text-gray-800">Sua sacolinha está vazia</p>
-                <p class="text-sm text-gray-600 mt-1">Quando você adicionar itens, eles aparecerão aqui.</p>
+            <div class="p-8 text-center">
+                <p class="text-base font-bold text-gray-800">Sua sacolinha está vazia</p>
+                <p class="text-sm text-gray-600 mt-1">Quando você reservar peças nas lives ou na loja online, elas aparecerão aqui.</p>
+                @if(empty(auth()->user()->brecho_id) || (int) auth()->user()->brecho_id === 1)
+                    <a href="{{ route('loja.index') }}"
+                       class="inline-flex items-center gap-2 mt-4 bg-pink-600 hover:bg-pink-700 text-white font-bold text-sm px-5 py-2.5 rounded-lg shadow-sm transition">
+                        <i class="fas fa-store"></i>
+                        <span>Explorar Loja Online</span>
+                    </a>
+                @endif
             </div>
         @else
 

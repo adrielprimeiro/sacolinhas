@@ -244,6 +244,16 @@
                 </a>
             @endif
 
+            <button type="button" onclick="openCutAuditModal()" id="btn-audit-cuts-header" class="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" style="background-color: #047857; color: #ffffff !important;" title="Auditar se cada corte de vídeo corresponde ao item cadastrado (Transcrição + Visão IA + Grade Visual)">
+                <i class="fas fa-shield-alt text-white"></i>
+                <span style="color: #ffffff !important; font-weight: 800;">Auditar Cortes</span>
+                @if(($stats['items_audit_mismatch'] ?? 0) > 0)
+                    <span id="header-audit-mismatch-pill" class="px-1.5 py-0.5 rounded-full text-[10px] font-black" style="background-color: #dc2626; color: #ffffff !important;">{{ $stats['items_audit_mismatch'] }}</span>
+                @else
+                    <span id="header-audit-mismatch-pill" class="hidden px-1.5 py-0.5 rounded-full text-[10px] font-black" style="background-color: #dc2626; color: #ffffff !important;">0</span>
+                @endif
+            </button>
+
             <button type="button" onclick="triggerAutoProcess()" id="btn-auto-process" class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold px-3 py-2 rounded-xl text-xs shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer" title="Executar todo o fluxo automaticamente">
                 <i class="fas fa-magic text-white"></i>
                 <span class="text-white font-black">Auto-Processar Tudo</span>
@@ -635,6 +645,20 @@
                         <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-gray-200 text-gray-700">{{ $stats['items_edited'] ?? 0 }}</span>
                     </button>
 
+                    @php
+                        $auditIssuesTotal = (int) (($stats['items_audit_mismatch'] ?? 0) + ($stats['items_audit_warning'] ?? 0));
+                    @endphp
+                    <button type="button"
+                            onclick="setItemsFilter('audit_issues')"
+                            data-filter="audit_issues"
+                            id="tab-filter-audit-issues"
+                            class="item-filter-tab px-2.5 py-1 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                            style="background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;">
+                        <i class="fas fa-shield-alt text-red-600"></i>
+                        <span>Auditoria</span>
+                        <span id="tab-audit-issues-count" class="px-1.5 py-0.2 rounded-full text-[10px] font-black" style="background-color: #dc2626; color: #ffffff !important;">{{ $auditIssuesTotal }}</span>
+                    </button>
+
                     @if(($stats['items_invalid_times'] ?? 0) > 0)
                         <button type="button" 
                                 onclick="setItemsFilter('invalid_time')"
@@ -654,6 +678,35 @@
                             <span>Selo & Marca</span>
                         </label>
                     </div>
+                </div>
+            </div>
+
+            <!-- Banner de Alerta de Descompasso em Cascata (ex: a partir do #311) -->
+            <div id="cascade-drift-alert" class="{{ !empty($auditDrift['has_cascade_drift']) ? '' : 'hidden' }} p-4 bg-red-50 border-2 border-red-400 rounded-2xl text-xs text-red-950 shadow-sm space-y-2.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="font-black text-red-900 text-sm flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-base"></i>
+                        <span id="cascade-drift-text">{{ $auditDrift['summary'] ?? '' }}</span>
+                    </div>
+                    <button type="button" onclick="openCutAuditModal('issues')" class="shrink-0 px-3 py-1.5 rounded-xl font-extrabold text-xs transition cursor-pointer" style="background-color: #111827; color: #ffffff !important;">
+                        <i class="fas fa-th-large mr-1"></i> Conferir em Grade Visual
+                    </button>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="btn-cascade-unlink"
+                            data-start-code="{{ $auditDrift['first_bad_code'] ?? '' }}"
+                            onclick="unlinkCutsFromStoreBatch('from_code', this.getAttribute('data-start-code'))"
+                            class="px-3 py-1.5 rounded-xl font-extrabold text-xs transition cursor-pointer shadow-xs"
+                            style="background-color: #dc2626; color: #ffffff !important;">
+                        <i class="fas fa-unlink mr-1"></i> Remover Vídeos da Loja a partir do #<span id="cascade-code-label-1">{{ $auditDrift['first_bad_code'] ?? '' }}</span>
+                    </button>
+                    <button type="button" id="btn-cascade-reminute"
+                            data-start-code="{{ $auditDrift['first_bad_code'] ?? '' }}"
+                            onclick="jumpToCascadeFix(this.getAttribute('data-start-code'))"
+                            class="px-3 py-1.5 rounded-xl font-extrabold text-xs transition cursor-pointer shadow-xs"
+                            style="background-color: #7e22ce; color: #ffffff !important;">
+                        <i class="fas fa-wand-magic-sparkles mr-1"></i> Re-minutar IA a partir do #<span id="cascade-code-label-2">{{ $auditDrift['first_bad_code'] ?? '' }}</span>
+                    </button>
                 </div>
             </div>
 
@@ -697,16 +750,25 @@
                         $isEdited = ($item['video_cut_status'] ?? '') === 'edited';
                         $isRendered = (in_array(($item['video_cut_status'] ?? ''), ['recorded', 'edited']) || !empty($item['video_cut_url']));
                         $isInvalidTime = !empty($item['is_past_video']);
+                        $auditSt = $item['audit_status'] ?? '';
+                        $auditScore = $item['audit_score'] ?? null;
+                        $auditReason = $item['audit_reason'] ?? null;
+                        $isAuditBad = in_array($auditSt, ['mismatch', 'rejected'], true);
+                        $isAuditWarn = ($auditSt === 'warning');
+                        $isAuditGood = in_array($auditSt, ['ok', 'approved'], true);
+                        $hasZeroPrice = (float) ($item['item_price_raw'] ?? 0) <= 0;
+                        $hasThumb = !empty($item['has_thumbnail']);
                     @endphp
                     <div id="item-card-{{ $item['live_item_id'] }}" 
                          data-has-cut="{{ $hasCutTimes ? '1' : '0' }}"
                          data-is-rendered="{{ $isRendered ? '1' : '0' }}"
                          data-is-edited="{{ $isEdited ? '1' : '0' }}"
                          data-is-invalid-time="{{ $isInvalidTime ? '1' : '0' }}"
+                         data-audit-status="{{ $auditSt }}"
                          data-code="{{ $item['codigo_live'] }}"
                          data-search="{{ strtolower($item['codigo_live'] . ' ' . $item['item_codigo'] . ' ' . $item['item_name'] . ' ' . ($item['buyer_name'] ?? '')) }}"
                          onclick="selectActiveItem({{ $item['live_item_id'] }}, '{{ $item['cut_start_formatted'] ?: ($item['cut_start_sec'] ?? 0) }}')"
-                         class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isEdited ? 'border-purple-400 bg-purple-50/20' : ($isRendered ? 'border-green-400 bg-green-50/20' : ($isInvalidTime ? 'border-rose-400 bg-rose-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-amber-300 bg-amber-50/30'))) }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
+                         class="item-card bg-white hover:bg-gray-50 rounded-2xl border {{ $isAuditBad ? 'border-red-500 bg-red-50/40' : ($isEdited ? 'border-purple-400 bg-purple-50/20' : ($isRendered ? 'border-green-400 bg-green-50/20' : ($isInvalidTime ? 'border-rose-400 bg-rose-50/20' : ($hasCutTimes ? 'border-indigo-300' : 'border-amber-300 bg-amber-50/30')))) }} p-4 transition duration-150 shadow-sm cursor-pointer relative group">
                         
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             
@@ -718,6 +780,32 @@
                                         <span class="px-2 py-0.5 rounded-lg text-xs font-black bg-indigo-600 text-white shadow-xs" style="background-color: #4f46e5; color: #ffffff !important;">
                                              #{{ $item['codigo_live'] }}
                                         </span>
+                                        <!-- Badge Dinâmico de Auditoria Corte x Item -->
+                                        <span id="badge-audit-{{ $item['live_item_id'] }}"
+                                              class="{{ $auditSt ? '' : 'hidden' }} px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center gap-1 shadow-xs"
+                                              style="{{ $isAuditBad ? 'background-color: #dc2626; color: #ffffff !important;' : ($isAuditWarn ? 'background-color: #fef3c7; color: #92400e; border: 1px solid #f59e0b;' : ($isAuditGood ? 'background-color: #15803d; color: #ffffff !important;' : '')) }}">
+                                            @if($auditSt === 'approved')
+                                                <i class="fas fa-check-double"></i> Aprovado Loja
+                                            @elseif($auditSt === 'ok')
+                                                <i class="fas fa-check-circle"></i> Corte OK {{ $auditScore !== null ? "({$auditScore}%)" : '' }}
+                                            @elseif($auditSt === 'warning')
+                                                <i class="fas fa-exclamation-triangle"></i> Conferir {{ $auditScore !== null ? "({$auditScore}%)" : '' }}
+                                            @elseif($auditSt === 'rejected')
+                                                <i class="fas fa-ban"></i> Removido da Loja
+                                            @elseif($auditSt === 'mismatch')
+                                                <i class="fas fa-times-circle"></i> Incompatível!
+                                            @endif
+                                        </span>
+                                        @if($hasZeroPrice)
+                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-gray-200 text-gray-800 border border-gray-300" title="Peça com preço R$ 0,00 — bloqueada na Loja Online">
+                                                Sem preço (fora do site)
+                                            </span>
+                                        @endif
+                                        @if(!$hasThumb)
+                                            <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-gray-200 text-gray-800 border border-gray-300" title="Peça sem thumbnail/foto — bloqueada na Loja Online">
+                                                Sem capa (fora do site)
+                                            </span>
+                                        @endif
                                         @if(!$hasCutTimes)
                                             <span class="px-2 py-0.5 rounded-lg text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs">
                                                 <i class="fas fa-exclamation-triangle text-amber-600"></i> Não Minutado
@@ -748,7 +836,16 @@
                                         @endif
                                     </div>
                                     <h4 class="text-sm font-extrabold text-gray-900 truncate mt-1">{{ $item['item_name'] }}</h4>
-                                    <div class="text-xs text-gray-500 font-semibold">Cód: {{ $item['item_codigo'] }} &bull; R$ {{ $item['item_price'] }}</div>
+                                    <div class="text-xs text-gray-600 font-semibold">
+                                        Cód: {{ $item['item_codigo'] }}
+                                        @if(!empty($item['item_tamanho'])) &bull; Tam {{ $item['item_tamanho'] }} @endif
+                                        @if(!empty($item['item_marca'])) &bull; {{ $item['item_marca'] }} @endif
+                                        &bull; R$ {{ $item['item_price'] }}
+                                    </div>
+                                    <div id="audit-reason-{{ $item['live_item_id'] }}"
+                                         class="{{ ($isAuditBad || $isAuditWarn) && $auditReason ? '' : 'hidden' }} mt-1 text-[11px] font-bold px-2 py-1 rounded-lg {{ $isAuditBad ? 'bg-red-100 text-red-900 border border-red-200' : 'bg-amber-100 text-amber-900 border border-amber-200' }}">
+                                        {{ $auditReason }}
+                                    </div>
                                 </div>
                             </div>
 
@@ -799,6 +896,22 @@
 
                                 <!-- Ações de Vídeo & Severino -->
                                 <div class="flex items-center gap-1.5">
+                                    <!-- Botão Visão IA Individual (conferir foto + fala) -->
+                                    <button type="button"
+                                            onclick="runSingleVisionAudit({{ $item['live_item_id'] }}, this)"
+                                            title="Verificar com Visão IA (Gemini compara a thumbnail e a fala com o cadastro do item)"
+                                            class="p-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+
+                                    <!-- Botão Reprovar Corte e Remover da Loja -->
+                                    <button type="button"
+                                            onclick="saveCutAuditDecision({{ $item['live_item_id'] }}, 'reject')"
+                                            title="Corte ERRADO — reprovar e remover vídeo/capa da Loja Online"
+                                            class="p-2 rounded-xl text-xs transition cursor-pointer active:scale-95 shadow-xs bg-red-50 hover:bg-red-100 text-red-700 border border-red-300">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+
                                     <!-- Botão Aprovar Padrão Ouro para Treinar o Severino -->
                                     <button type="button" 
                                             onclick="approveItemCut({{ $item['live_item_id'] }})" 
@@ -1941,6 +2054,80 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL DE AUDITORIA & CONFERÊNCIA VISUAL RÁPIDA (CORTE x ITEM)             -->
+<!-- ========================================================================= -->
+<div id="cut-audit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 p-3 sm:p-6">
+    <div class="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
+        <!-- Header do Modal -->
+        <div class="px-5 py-4 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-lg font-black text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-shield-alt text-emerald-600"></i>
+                    <span>Auditoria &amp; Conferência Visual — Corte × Item</span>
+                </h3>
+                <p class="text-xs text-gray-600 font-medium mt-0.5">
+                    Detecte cortes trocados (como descompasso em cascata) e remova da Loja em 1 clique antes de publicar.
+                </p>
+            </div>
+            <button type="button" onclick="closeCutAuditModal()" class="w-9 h-9 rounded-xl bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center justify-center cursor-pointer">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Barra de Controles de Auditoria -->
+        <div class="px-5 py-3.5 border-b border-gray-200 bg-white space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" id="btn-run-fast-audit" onclick="runBatchCutAudit(false)"
+                        class="px-3.5 py-2 rounded-xl text-xs font-extrabold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                        style="background-color: #047857; color: #ffffff !important;">
+                    <i class="fas fa-bolt"></i>
+                    <span>Auditar Tudo Rápido (Transcrição/Regras)</span>
+                </button>
+
+                <button type="button" id="btn-run-vision-audit" onclick="runBatchCutAudit(true)"
+                        class="px-3.5 py-2 rounded-xl text-xs font-extrabold shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                        style="background-color: #4f46e5; color: #ffffff !important;"
+                        title="Gemini analisa a foto da thumbnail + fala dos itens suspeitos/pendentes (até 35 por rodada)">
+                    <i class="fas fa-eye"></i>
+                    <span>Auditar Suspeitos c/ Visão IA (Gemini)</span>
+                </button>
+
+                <div class="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-2.5 py-1.5 ml-auto">
+                    <span class="text-[11px] font-extrabold text-red-900">Desvincular da Loja a partir do #:</span>
+                    <input type="number" id="audit-unlink-from-code" min="1" placeholder="Ex: 311" value="{{ $auditDrift['first_bad_code'] ?? '' }}"
+                           class="w-16 px-2 py-1 text-xs font-black text-center bg-white border border-red-300 rounded-lg text-gray-900">
+                    <button type="button" onclick="unlinkCutsFromStoreBatch('from_code', document.getElementById('audit-unlink-from-code').value)"
+                            class="px-2.5 py-1 rounded-lg text-xs font-extrabold transition cursor-pointer"
+                            style="background-color: #dc2626; color: #ffffff !important;">
+                        Remover da Loja
+                    </button>
+                </div>
+
+                <button type="button" onclick="unlinkCutsFromStoreBatch('mismatches')"
+                        class="px-3 py-2 rounded-xl text-xs font-extrabold border border-red-300 bg-white hover:bg-red-50 text-red-800 transition cursor-pointer">
+                    <i class="fas fa-trash-alt mr-1"></i> Limpar Todos Incompatíveis da Loja
+                </button>
+            </div>
+
+            <!-- Status / Feedback + Filtros da Grade -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <button type="button" onclick="setAuditGridFilter('all')" data-grid-filter="all" class="audit-grid-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold cursor-pointer" style="background-color: #111827; color: #ffffff !important;">Todos</button>
+                    <button type="button" onclick="setAuditGridFilter('issues')" data-grid-filter="issues" class="audit-grid-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold cursor-pointer" style="background-color: #fee2e2; color: #991b1b;">❌ Incompatíveis / Conferir</button>
+                    <button type="button" onclick="setAuditGridFilter('ok')" data-grid-filter="ok" class="audit-grid-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold cursor-pointer" style="background-color: #dcfce7; color: #166534;">✅ OK / Aprovados</button>
+                    <button type="button" onclick="setAuditGridFilter('pending')" data-grid-filter="pending" class="audit-grid-filter-btn px-3 py-1 rounded-lg text-xs font-extrabold cursor-pointer" style="background-color: #f3f4f6; color: #374151;">Pendentes</button>
+                </div>
+                <div id="audit-modal-feedback" class="text-xs font-bold text-gray-700"></div>
+            </div>
+        </div>
+
+        <!-- Grade Visual de Conferência -->
+        <div id="audit-visual-grid" class="flex-1 overflow-y-auto custom-modal-scroll p-5 bg-gray-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        </div>
+    </div>
+</div>
+
 @push('scripts')
 <script>
     const liveId = {{ $live->id }};
@@ -1965,7 +2152,7 @@
                 if (f === 'unminuted') {
                     btn.style.backgroundColor = '#fef3c7';
                     btn.style.color = '#92400e';
-                } else if (f === 'invalid_time') {
+                } else if (f === 'invalid_time' || f === 'audit_issues') {
                     btn.style.backgroundColor = '#fee2e2';
                     btn.style.color = '#991b1b';
                 } else {
@@ -2012,6 +2199,7 @@
             const isRendered = card.getAttribute('data-is-rendered') === '1';
             const isEdited = card.getAttribute('data-is-edited') === '1';
             const isInvalidTime = card.getAttribute('data-is-invalid-time') === '1';
+            const auditStatus = (card.getAttribute('data-audit-status') || '').toLowerCase();
             const searchData = (card.getAttribute('data-search') || '').toLowerCase();
             const code = (card.getAttribute('data-code') || '').toLowerCase();
 
@@ -2026,6 +2214,8 @@
                 matchesTab = isEdited;
             } else if (currentItemFilter === 'invalid_time') {
                 matchesTab = isInvalidTime;
+            } else if (currentItemFilter === 'audit_issues') {
+                matchesTab = (auditStatus === 'mismatch' || auditStatus === 'rejected' || auditStatus === 'warning');
             }
 
             let matchesSearch = true;
@@ -5082,6 +5272,7 @@
         // 3. Atalho global de tecla Escape para fechar qualquer modal aberto
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
+                closeCutAuditModal();
                 closeTranscriptionSearchModal();
                 toggleTranscriptionModal(false);
                 toggleUploadModal(false);
@@ -5092,6 +5283,401 @@
             }
         });
     });
+
+    // =========================================================================
+    // AUDITORIA CORTE x ITEM & CONFERÊNCIA VISUAL RÁPIDA
+    // =========================================================================
+    const auditItemsState = @json($liveItems->values());
+    let auditGridFilter = 'all';
+
+    function openCutAuditModal(initialFilter) {
+        const modal = document.getElementById('cut-audit-modal');
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+        setAuditGridFilter(initialFilter || 'all');
+    }
+
+    function closeCutAuditModal() {
+        const modal = document.getElementById('cut-audit-modal');
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    function setAuditGridFilter(filter) {
+        auditGridFilter = filter || 'all';
+        document.querySelectorAll('.audit-grid-filter-btn').forEach(btn => {
+            const f = btn.getAttribute('data-grid-filter');
+            if (f === auditGridFilter) {
+                btn.style.backgroundColor = '#111827';
+                btn.style.color = '#ffffff';
+            } else if (f === 'issues') {
+                btn.style.backgroundColor = '#fee2e2';
+                btn.style.color = '#991b1b';
+            } else if (f === 'ok') {
+                btn.style.backgroundColor = '#dcfce7';
+                btn.style.color = '#166534';
+            } else {
+                btn.style.backgroundColor = '#f3f4f6';
+                btn.style.color = '#374151';
+            }
+        });
+        renderAuditVisualGrid();
+    }
+
+    function escapeHtmlAudit(str) {
+        return String(str || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function renderAuditVisualGrid() {
+        const grid = document.getElementById('audit-visual-grid');
+        if (!grid) return;
+
+        const filtered = auditItemsState.filter(it => {
+            const st = it.audit_status || '';
+            if (auditGridFilter === 'issues') return st === 'mismatch' || st === 'rejected' || st === 'warning';
+            if (auditGridFilter === 'ok') return st === 'ok' || st === 'approved';
+            if (auditGridFilter === 'pending') return !st;
+            return true;
+        });
+
+        if (filtered.length === 0) {
+            grid.innerHTML = '<div class="col-span-full bg-white rounded-2xl border border-gray-200 p-10 text-center text-sm font-bold text-gray-600">Nenhum item encontrado neste filtro.</div>';
+            return;
+        }
+
+        grid.innerHTML = filtered.map(it => {
+            const st = it.audit_status || '';
+            const isBad = st === 'mismatch' || st === 'rejected';
+            const isWarn = st === 'warning';
+            const isGood = st === 'ok' || st === 'approved';
+
+            let borderClass = 'border-gray-200';
+            let statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-gray-200 text-gray-800">Pendente</span>';
+            if (st === 'approved') {
+                borderClass = 'border-green-500';
+                statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#15803d;color:#fff;">✅ Aprovado Loja</span>';
+            } else if (st === 'ok') {
+                borderClass = 'border-green-400';
+                statusBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#16a34a;color:#fff;">✅ OK (${it.audit_score ?? 90}%)</span>`;
+            } else if (isWarn) {
+                borderClass = 'border-amber-400';
+                statusBadge = `<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#fef3c7;color:#92400e;border:1px solid #f59e0b;">⚠️ Conferir (${it.audit_score ?? 50}%)</span>`;
+            } else if (st === 'rejected') {
+                borderClass = 'border-red-500';
+                statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#dc2626;color:#fff;">🚫 Removido da Loja</span>';
+            } else if (st === 'mismatch') {
+                borderClass = 'border-red-500';
+                statusBadge = '<span class="px-2 py-0.5 rounded-md text-[10px] font-black" style="background-color:#dc2626;color:#fff;">❌ Incompatível!</span>';
+            }
+
+            const thumbUrl = (it.thumbnail_candidates && it.thumbnail_candidates.length > 0)
+                ? (it.thumbnail_candidates[1]?.url || it.thumbnail_candidates[0]?.url || it.item_image)
+                : it.item_image;
+
+            const detailsLine = [
+                it.item_tamanho ? ('Tam ' + it.item_tamanho) : '',
+                it.item_marca || '',
+                it.item_cor || '',
+                'R$ ' + (it.item_price || '0,00')
+            ].filter(Boolean).join(' • ');
+
+            const snippetShort = it.transcription_snippet ? String(it.transcription_snippet).slice(0, 150) : 'Sem transcrição neste trecho.';
+            const videoLinkBtn = it.video_cut_url
+                ? `<a href="${escapeHtmlAudit(it.video_cut_url)}" target="_blank" class="px-2 py-1 rounded-lg text-[11px] font-extrabold bg-black/80 text-white hover:bg-black"><i class="fas fa-play mr-1"></i>Ver Corte</a>`
+                : '';
+
+            return `
+                <div class="bg-white rounded-2xl border-2 ${borderClass} overflow-hidden shadow-sm flex flex-col">
+                    <div class="relative aspect-[4/3] bg-gray-900 overflow-hidden">
+                        <img src="${escapeHtmlAudit(thumbUrl)}" alt="#${escapeHtmlAudit(it.codigo_live)}" class="w-full h-full object-contain bg-gray-900" onerror="this.src='https://placehold.co/400x300?text=Sem+Thumbnail'">
+                        <div class="absolute top-2 left-2 flex items-center gap-1.5">
+                            <span class="px-2 py-0.5 rounded-lg text-xs font-black" style="background-color:#4f46e5;color:#fff;">#${escapeHtmlAudit(it.codigo_live)}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="absolute bottom-2 right-2">${videoLinkBtn}</div>
+                    </div>
+                    <div class="p-3.5 flex-1 flex flex-col justify-between gap-2.5">
+                        <div>
+                            <h4 class="text-sm font-extrabold text-gray-900 leading-snug">${escapeHtmlAudit(it.item_name)}</h4>
+                            <p class="text-xs font-bold text-gray-700 mt-0.5">${escapeHtmlAudit(detailsLine)}</p>
+                            ${it.audit_reason ? `<div class="mt-2 p-2 rounded-lg text-[11px] font-bold ${isBad ? 'bg-red-50 text-red-900 border border-red-200' : (isWarn ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-emerald-50 text-emerald-900 border border-emerald-200')}">${escapeHtmlAudit(it.audit_reason)}</div>` : ''}
+                            <p class="mt-2 text-[11px] text-gray-600 italic leading-snug">"${escapeHtmlAudit(snippetShort)}"</p>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1.5 pt-2 border-t border-gray-100">
+                            <button type="button" onclick="saveCutAuditDecision(${it.live_item_id}, 'approve')" class="py-1.5 px-2 rounded-lg text-[11px] font-extrabold cursor-pointer transition" style="background-color:#15803d;color:#ffffff !important;">
+                                ✓ OK Loja
+                            </button>
+                            <button type="button" onclick="saveCutAuditDecision(${it.live_item_id}, 'reject')" class="py-1.5 px-2 rounded-lg text-[11px] font-extrabold cursor-pointer transition" style="background-color:#dc2626;color:#ffffff !important;">
+                                ✕ Errado
+                            </button>
+                            <button type="button" onclick="runSingleVisionAudit(${it.live_item_id}, this)" class="py-1.5 px-2 rounded-lg text-[11px] font-extrabold cursor-pointer transition" style="background-color:#4f46e5;color:#ffffff !important;">
+                                👁️ Visão IA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function applyAuditResultToCard(liveItemId, auditData) {
+        const st = auditData.status || auditData.audit_status || '';
+        const score = auditData.score ?? auditData.audit_score ?? null;
+        const reason = auditData.reason || auditData.audit_reason || '';
+
+        const stateItem = auditItemsState.find(i => Number(i.live_item_id) === Number(liveItemId));
+        if (stateItem) {
+            stateItem.audit_status = st;
+            stateItem.audit_score = score;
+            stateItem.audit_reason = reason;
+            if (auditData.detected_code) stateItem.audit_detected_code = auditData.detected_code;
+        }
+
+        const card = document.getElementById(`item-card-${liveItemId}`);
+        const badge = document.getElementById(`badge-audit-${liveItemId}`);
+        const reasonBox = document.getElementById(`audit-reason-${liveItemId}`);
+
+        if (card) {
+            card.setAttribute('data-audit-status', st);
+            card.classList.remove('border-red-500', 'bg-red-50/40');
+            if (st === 'mismatch' || st === 'rejected') {
+                card.classList.add('border-red-500', 'bg-red-50/40');
+            }
+        }
+
+        if (badge) {
+            badge.classList.remove('hidden');
+            if (st === 'approved') {
+                badge.style.cssText = 'background-color: #15803d; color: #ffffff !important;';
+                badge.innerHTML = '<i class="fas fa-check-double"></i> Aprovado Loja';
+            } else if (st === 'ok') {
+                badge.style.cssText = 'background-color: #15803d; color: #ffffff !important;';
+                badge.innerHTML = `<i class="fas fa-check-circle"></i> Corte OK ${score !== null ? '(' + score + '%)' : ''}`;
+            } else if (st === 'warning') {
+                badge.style.cssText = 'background-color: #fef3c7; color: #92400e; border: 1px solid #f59e0b;';
+                badge.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Conferir ${score !== null ? '(' + score + '%)' : ''}`;
+            } else if (st === 'rejected') {
+                badge.style.cssText = 'background-color: #dc2626; color: #ffffff !important;';
+                badge.innerHTML = '<i class="fas fa-ban"></i> Removido da Loja';
+            } else if (st === 'mismatch') {
+                badge.style.cssText = 'background-color: #dc2626; color: #ffffff !important;';
+                badge.innerHTML = '<i class="fas fa-times-circle"></i> Incompatível!';
+            }
+        }
+
+        if (reasonBox) {
+            if ((st === 'mismatch' || st === 'rejected' || st === 'warning') && reason) {
+                reasonBox.textContent = reason;
+                reasonBox.className = 'mt-1 text-[11px] font-bold px-2 py-1 rounded-lg ' + ((st === 'mismatch' || st === 'rejected') ? 'bg-red-100 text-red-900 border border-red-200' : 'bg-amber-100 text-amber-900 border border-amber-200');
+            } else {
+                reasonBox.classList.add('hidden');
+            }
+        }
+
+        updateAuditCountersUI();
+    }
+
+    function updateAuditCountersUI() {
+        let badCount = 0;
+        let warnCount = 0;
+        auditItemsState.forEach(it => {
+            if (it.audit_status === 'mismatch' || it.audit_status === 'rejected') badCount++;
+            else if (it.audit_status === 'warning') warnCount++;
+        });
+        const pill = document.getElementById('header-audit-mismatch-pill');
+        if (pill) {
+            pill.textContent = badCount;
+            pill.classList.toggle('hidden', badCount === 0);
+        }
+        const tabCount = document.getElementById('tab-audit-issues-count');
+        if (tabCount) tabCount.textContent = badCount + warnCount;
+    }
+
+    function updateCascadeDriftBanner(drift) {
+        if (!drift) return;
+        const banner = document.getElementById('cascade-drift-alert');
+        if (!banner) return;
+
+        if (drift.has_cascade_drift && drift.first_bad_code) {
+            document.getElementById('cascade-drift-text').textContent = drift.summary;
+            document.getElementById('cascade-code-label-1').textContent = drift.first_bad_code;
+            document.getElementById('cascade-code-label-2').textContent = drift.first_bad_code;
+            document.getElementById('btn-cascade-unlink').setAttribute('data-start-code', drift.first_bad_code);
+            document.getElementById('btn-cascade-reminute').setAttribute('data-start-code', drift.first_bad_code);
+            const inputCode = document.getElementById('audit-unlink-from-code');
+            if (inputCode) inputCode.value = drift.first_bad_code;
+            banner.classList.remove('hidden');
+        } else {
+            banner.classList.add('hidden');
+        }
+    }
+
+    async function runBatchCutAudit(useVision) {
+        const fb = document.getElementById('audit-modal-feedback');
+        const btn = document.getElementById(useVision ? 'btn-run-vision-audit' : 'btn-run-fast-audit');
+        const prevHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Auditando...</span>';
+        }
+        if (fb) fb.textContent = useVision ? 'Analisando fotos + transcrições com Gemini Vision (pode levar ~30s)...' : 'Auditando todos os cortes da live...';
+
+        const startCode = document.getElementById('global-start-code')?.value || '';
+
+        try {
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/audit-batch`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    use_vision: !!useVision,
+                    only_suspicious: !!useVision,
+                    start_code: startCode || null
+                })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success) {
+                if (data.results) {
+                    Object.entries(data.results).forEach(([id, res]) => applyAuditResultToCard(id, res));
+                }
+                if (data.drift) {
+                    updateCascadeDriftBanner(data.drift);
+                }
+                if (fb) fb.textContent = data.message || 'Auditoria concluída!';
+                renderAuditVisualGrid();
+                applyItemCardFilters();
+            } else {
+                if (fb) fb.textContent = data.message || 'Falha ao executar auditoria.';
+            }
+        } catch (err) {
+            if (fb) fb.textContent = 'Erro de conexão durante a auditoria.';
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = prevHtml;
+            }
+        }
+    }
+
+    async function runSingleVisionAudit(liveItemId, btnEl) {
+        const prevHtml = btnEl ? btnEl.innerHTML : '';
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        try {
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/audit-item/${liveItemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ use_vision: true })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success && data.audit) {
+                applyAuditResultToCard(liveItemId, data.audit);
+                renderAuditVisualGrid();
+            } else {
+                alert(data.message || 'Não foi possível auditar este item.');
+            }
+        } catch (err) {
+            alert('Erro de conexão ao chamar Visão IA.');
+        } finally {
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = prevHtml;
+            }
+        }
+    }
+
+    async function saveCutAuditDecision(liveItemId, decision) {
+        try {
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/audit-decision/${liveItemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ decision })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success) {
+                applyAuditResultToCard(liveItemId, {
+                    status: data.audit_status,
+                    score: data.audit_score,
+                    reason: data.message
+                });
+                const fb = document.getElementById('audit-modal-feedback');
+                if (fb) fb.textContent = data.message;
+                renderAuditVisualGrid();
+            } else {
+                alert(data.message || 'Falha ao salvar decisão.');
+            }
+        } catch (err) {
+            alert('Erro de conexão ao salvar decisão.');
+        }
+    }
+
+    async function unlinkCutsFromStoreBatch(mode, startCode) {
+        if (mode === 'from_code' && (!startCode || isNaN(parseInt(startCode, 10)))) {
+            alert('Informe o número do código inicial (ex: 311).');
+            return;
+        }
+        const msgConfirm = mode === 'from_code'
+            ? `Remover vídeos e capas da live da Loja Online para TODOS os itens a partir do código #${startCode}?\n\n(Os cortes continuam salvos aqui para você corrigir e re-fatiar depois; fotos reais de estúdio NÃO são apagadas.)`
+            : 'Remover da Loja Online os vídeos/capas de TODOS os cortes marcados como Incompatíveis ou Reprovados?';
+
+        if (!confirm(msgConfirm)) return;
+
+        try {
+            const resp = await fetch(`/admin/lives/${liveId}/cortes/unlink-from-store`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    mode: mode,
+                    start_code: mode === 'from_code' ? parseInt(startCode, 10) : null
+                })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert(data.message || 'Não foi possível desvincular.');
+            }
+        } catch (err) {
+            alert('Erro de conexão ao desvincular da Loja.');
+        }
+    }
+
+    function jumpToCascadeFix(startCode) {
+        const inp = document.getElementById('global-start-code');
+        if (inp && startCode) {
+            inp.value = startCode;
+        }
+        closeCutAuditModal();
+        if (typeof openStep3Modal === 'function') {
+            openStep3Modal();
+        }
+    }
 </script>
 @endpush
 @endsection

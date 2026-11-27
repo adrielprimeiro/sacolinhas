@@ -90,4 +90,13 @@ return [
         'app_secret'    => env('INSTAGRAM_APP_SECRET'),
         'redirect_uri'  => env('INSTAGRAM_REDIRECT_URI', 'https://minhamania.net/admin/instagram/callback'),
     ],
+
+    'analytics' => [
+        'ga4_id'        => env('GA4_MEASUREMENT_ID'),
+        'meta_pixel_id' => env('META_PIXEL_ID'),
+    ],
+
+    'store' => [
+        'whatsapp_contact' => env('STORE_WHATSAPP_CONTACT', ''),
+    ],
 ];

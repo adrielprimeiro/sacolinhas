@@ -14,6 +14,7 @@ use App\Models\Live;
 use App\Models\Item;
 use App\Models\ItemMedia;
 use App\Services\LiveClipOverlayService;
+use App\Services\LiveCutAuditService;
 
 class LiveVideoCutsController extends Controller
 {
@@ -294,6 +295,9 @@ class LiveVideoCutsController extends Controller
             'items.codigo as item_codigo',
             'items.preco as item_price',
             'items.image as item_image',
+            'items.marca as item_marca',
+            'items.cor as item_cor',
+            'items.tamanho as item_tamanho',
             'users.name as user_full_name'
         ];
         if ($hasCandCol) {
@@ -304,6 +308,14 @@ class LiveVideoCutsController extends Controller
         }
         if (Schema::hasColumn('live_items', 'review_quality')) {
             $selectCols[] = 'live_items.review_quality';
+        }
+        if (Schema::hasColumn('live_items', 'audit_status')) {
+            $selectCols[] = 'live_items.audit_status';
+            $selectCols[] = 'live_items.audit_score';
+            $selectCols[] = 'live_items.audit_reason';
+            $selectCols[] = 'live_items.audit_detected_code';
+            $selectCols[] = 'live_items.audit_method';
+            $selectCols[] = 'live_items.audited_at';
         }
         if (Schema::hasColumn('live_items', 'youtube_video_id')) {
             $selectCols[] = 'live_items.youtube_video_id';
@@ -395,8 +407,19 @@ class LiveVideoCutsController extends Controller
                 'item_sku' => $row->item_codigo,
                 'item_codigo' => $row->item_codigo,
                 'item_price' => number_format((float) ($row->item_price ?: 0), 2, ',', '.'),
+                'item_price_raw' => (float) ($row->item_price ?: 0),
+                'item_marca' => $row->item_marca ?? '',
+                'item_cor' => $row->item_cor ?? '',
+                'item_tamanho' => $row->item_tamanho ?? '',
                 'item_image' => $image ?: 'https://placehold.co/100x100?text=Sem+Foto',
                 'raw_image_path' => $rawImage,
+                'has_thumbnail' => !empty($rawImage) || !empty($candidates),
+                'audit_status' => $row->audit_status ?? null,
+                'audit_score' => isset($row->audit_score) ? (int) $row->audit_score : null,
+                'audit_reason' => $row->audit_reason ?? null,
+                'audit_detected_code' => $row->audit_detected_code ?? null,
+                'audit_method' => $row->audit_method ?? null,
+                'audited_at' => $row->audited_at ?? null,
                 'buyer_name' => $row->buyer_name ?: ($row->user_full_name ?: ($row->buyer_username ? '@' . $row->buyer_username : null)),
                 'buyer_username' => $row->buyer_username,
                 'cut_start_sec' => $row->cut_start_sec !== null ? (float) $row->cut_start_sec : null,
@@ -483,10 +506,13 @@ class LiveVideoCutsController extends Controller
                 : Storage::url($live->recording_path);
         }
 
+        $auditDrift = app(LiveCutAuditService::class)->detectCascadeDrift($liveItems);
+
         return view('admin.lives.video_cuts', [
             'live' => $live,
             'lives' => $lives,
             'liveItems' => $liveItems,
+            'auditDrift' => $auditDrift,
             'transcriptionData' => $transcriptionData,
             'recordingUrl' => $recordingUrl,
             'videoDurationSec' => $videoDurationSec,
@@ -504,6 +530,9 @@ class LiveVideoCutsController extends Controller
                 'items_rendered' => $itemsRendered,
                 'items_edited' => $itemsEdited,
                 'items_invalid_times' => $itemsInvalidTimes,
+                'items_audit_mismatch' => $auditDrift['mismatch_count'],
+                'items_audit_warning' => $auditDrift['warning_count'],
+                'items_audit_ok' => $auditDrift['ok_count'] + $auditDrift['approved_count'],
                 'items_youtube' => $itemsPublishedYouTube,
                 'items_tiktok' => $itemsPublishedTikTok,
                 'items_instagram' => $itemsPublishedInstagram,
@@ -747,7 +776,7 @@ class LiveVideoCutsController extends Controller
         $summary = $processor->getPipelineSummary($live, $url);
 
         if (!$force && $summary['is_all_completed']) {
-            $msg = "Esta live já está 100% processada! Todos os {$summary['total_items']} cortes já foram fatiados e editados com selo e marca d'água.";
+            $msg = "Esta live já está 100% processada! Todos os {$summary['total_items']} cortes já foram fatiados no formato original limpo.";
 
             \Illuminate\Support\Facades\Cache::put($statusKey, [
                 'status' => 'completed',
@@ -2425,6 +2454,13 @@ PROMPT;
         if (Schema::hasColumn('live_items', 'review_quality')) {
             $updateData['review_quality'] = 'gold';
         }
+        if (Schema::hasColumn('live_items', 'audit_status')) {
+            $updateData['audit_status'] = 'approved';
+            $updateData['audit_score'] = 100;
+            $updateData['audit_reason'] = 'Aprovado manualmente como Padrão-Ouro.';
+            $updateData['audit_method'] = 'human';
+            $updateData['audited_at'] = now();
+        }
 
         DB::table('live_items')->where('id', $liveItemId)->update($updateData);
 
@@ -2962,8 +2998,38 @@ PROMPT;
             ->where('id', $liveItemId)
             ->update($updateData);
 
-        // Vincula ou atualiza a mídia do tipo vídeo com thumbnail no cadastro do item
-        if (!empty($liveItem->item_id)) {
+        // Auditoria rápida automática de compatibilidade (código/preço/categoria) antes de publicar na Loja
+        $auditResult = null;
+        try {
+            $auditRow = DB::table('live_items')
+                ->join('items', 'live_items.item_id', '=', 'items.id')
+                ->where('live_items.id', $liveItemId)
+                ->select([
+                    'live_items.*',
+                    'items.nome_do_produto as item_nome',
+                    'items.descricao as item_descricao',
+                    'items.codigo as item_codigo',
+                    'items.preco as item_price',
+                    'items.image as item_image',
+                    'items.marca as item_marca',
+                    'items.cor as item_cor',
+                    'items.tamanho as item_tamanho',
+                ])
+                ->first();
+
+            if ($auditRow) {
+                $auditService = app(LiveCutAuditService::class);
+                $auditResult = $auditService->auditLiveItem($auditRow, $live, false);
+                $auditService->persistAuditResult((int) $liveItemId, $auditResult);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[LiveVideoCuts] Falha na auditoria rápida pós-corte: ' . $e->getMessage());
+        }
+
+        $isAuditMismatch = ($auditResult['status'] ?? null) === 'mismatch';
+
+        // Vincula a mídia no cadastro do item SOMENTE se tiver thumbnail válida E não houver incompatibilidade grave
+        if (!empty($liveItem->item_id) && !$isAuditMismatch && !empty($primaryPath)) {
             ItemMedia::updateOrCreate(
                 [
                     'item_id' => $liveItem->item_id,
@@ -2978,12 +3044,15 @@ PROMPT;
                 ]
             );
 
-            // Se o item não tiver imagem de capa ou estiver com foto anterior, define essa thumbnail como foto principal
+            // Se o item não tiver imagem de capa ou estiver com foto anterior da live, define essa thumbnail como foto principal
             $itemObj = Item::find($liveItem->item_id);
-            if ($itemObj && (empty($itemObj->image) || str_contains($itemObj->image, 'live_cuts/')) && $primaryPath) {
+            if ($itemObj && (empty($itemObj->image) || str_contains($itemObj->image, 'live_cuts/'))) {
                 $itemObj->image = $primaryPath;
                 $itemObj->save();
             }
+
+            Cache::forget('loja_popular_sizes_v2');
+            Cache::forget('loja_quick_stats_v2');
         }
 
         $finalStatus = 'recorded';
@@ -3596,7 +3665,7 @@ PROMPT;
         // O vídeo já foi fatiado: aplica os motions e carimbo diretamente no corte em MP4
         $outputDir = dirname($existingCutPath);
         $productItem = DB::table('items')->where('id', $liveItem->item_id)->first();
-        $editionStyle = $request->input('edition_style', 'reel_canvas'); // 'reel_canvas' (default) ou 'fullscreen'
+        $editionStyle = $request->input('edition_style', 'fullscreen'); // 'fullscreen' (default sem moldura) ou 'reel_canvas'
         $tempFiles = [];
 
         $motionStampPath = LiveClipOverlayService::getMotionStampPath($productItem?->estado ?? null);
@@ -3609,16 +3678,31 @@ PROMPT;
         $editedPath = $outputDir . '/' . $editedFilename;
 
         if ($editionStyle === 'fullscreen') {
-            // Estilo Fullscreen com motions flutuantes
+            // Estilo Fullscreen (Tela cheia 100% compatível com a resolução real do vídeo, sem moldura preta)
+            [$vidW, $vidH] = $this->getVideoDimensions($existingCutPath);
+            $vidW = max(360, $vidW);
+            $vidH = max(640, $vidH);
+
+            $cardW = (int) round($vidW * 0.52);
+            $cardH = (int) round($cardW * 0.33);
+            $cardY = (int) round($vidH * 0.74);
+            $stampW = (int) round($vidW * 0.30);
+            $stampX = (int) round($vidW - $stampW - ($vidW * 0.04));
+            $stampY = (int) round($vidH * 0.055);
+
             $cardPath = $outputDir . '/card_float_' . uniqid() . '.png';
             $tempFiles[] = $cardPath;
-            LiveClipOverlayService::generateGlassmorphicCard($productItem, 360, 120, $cardPath);
+            LiveClipOverlayService::generateGlassmorphicCard($productItem, $cardW, $cardH, $cardPath);
 
             if ($stampFileExists) {
                 $stampInputArg = $isMotion ? ('-stream_loop -1 -i ' . escapeshellarg($stampPath)) : ('-i ' . escapeshellarg($stampPath));
                 $shortestArg = $isMotion ? ':shortest=1' : '';
                 $filterComplex = sprintf(
-                    '[1:v]format=rgba[card]; [2:v]scale=220:-1,format=rgba[stamp]; [0:v][card]overlay=x=\'if(lt(t,0.8), -450, if(lt(t,1.2), -450 + 478*(1 - pow(1 - (t - 0.8)/0.4, 3)), 28))\':y=920[v1]; [v1][stamp]overlay=x=475:y=70%s[v]',
+                    '[1:v]format=rgba[card]; [2:v]scale=%d:-1,format=rgba[stamp]; [0:v][card]overlay=x=\'if(lt(t,0.8), -450, if(lt(t,1.2), -450 + 478*(1 - pow(1 - (t - 0.8)/0.4, 3)), 28))\':y=%d[v1]; [v1][stamp]overlay=x=%d:y=%d%s[v]',
+                    $stampW,
+                    $cardY,
+                    $stampX,
+                    $stampY,
                     $shortestArg
                 );
                 $cmd = sprintf(
@@ -3630,7 +3714,10 @@ PROMPT;
                     escapeshellarg($editedPath)
                 );
             } else {
-                $filterComplex = '[1:v]format=rgba[card]; [0:v][card]overlay=x=\'if(lt(t,0.8), -450, if(lt(t,1.2), -450 + 478*(1 - pow(1 - (t - 0.8)/0.4, 3)), 28))\':y=920[v]';
+                $filterComplex = sprintf(
+                    '[1:v]format=rgba[card]; [0:v][card]overlay=x=\'if(lt(t,0.8), -450, if(lt(t,1.2), -450 + 478*(1 - pow(1 - (t - 0.8)/0.4, 3)), 28))\':y=%d[v]',
+                    $cardY
+                );
                 $cmd = sprintf(
                     'ffmpeg -i %s -i %s -filter_complex %s -map "[v]" -map 0:a? -c:v libx264 -preset veryfast -crf 22 -c:a copy -movflags +faststart -y %s 2>&1',
                     escapeshellarg($existingCutPath),
@@ -3821,5 +3908,238 @@ PROMPT;
         }
 
         return [720, 1280];
+    }
+
+    // =========================================================================
+    // AUDITORIA DE COMPATIBILIDADE CORTE x ITEM (PREVENÇÃO DE DESCOMPASSO)
+    // =========================================================================
+
+    /**
+     * Audita todos os cortes da live (ou a partir de um código) — Modo Rápido (regras) ou Visão IA (Gemini).
+     */
+    public function auditBatchCuts(Request $request, $liveId)
+    {
+        set_time_limit(300);
+
+        $live = Live::findOrFail($liveId);
+        $useVision = $request->boolean('use_vision', false);
+        $onlySuspicious = $request->boolean('only_suspicious', false);
+        $preserveApproved = $request->boolean('preserve_approved', true);
+        $startCodeRaw = $request->input('start_code');
+        $startCode = ($startCodeRaw !== null && $startCodeRaw !== '' && is_numeric($startCodeRaw)) ? (int) $startCodeRaw : null;
+
+        $auditService = app(LiveCutAuditService::class);
+
+        $rows = DB::table('live_items')
+            ->join('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.live_id', $liveId)
+            ->select([
+                'live_items.*',
+                'items.nome_do_produto as item_nome',
+                'items.descricao as item_descricao',
+                'items.codigo as item_codigo',
+                'items.preco as item_price',
+                'items.image as item_image',
+                'items.marca as item_marca',
+                'items.cor as item_cor',
+                'items.tamanho as item_tamanho',
+            ])
+            ->orderBy('live_items.id', 'asc')
+            ->get();
+
+        $results = [];
+        $auditedCount = 0;
+
+        foreach ($rows as $row) {
+            $codeNum = (int) preg_replace('/\D+/', '', (string) ($row->codigo_live ?? ''));
+            if ($startCode !== null && $codeNum > 0 && $codeNum < $startCode) {
+                continue;
+            }
+
+            if ($preserveApproved && ($row->audit_status ?? null) === 'approved') {
+                $results[$row->id] = [
+                    'status'        => 'approved',
+                    'score'         => (int) ($row->audit_score ?? 100),
+                    'reason'        => $row->audit_reason ?? 'Aprovado manualmente.',
+                    'detected_code' => $row->audit_detected_code,
+                    'method'        => $row->audit_method ?? 'human',
+                ];
+                continue;
+            }
+
+            if ($onlySuspicious && !in_array($row->audit_status ?? null, ['warning', 'mismatch', null, ''], true)) {
+                continue;
+            }
+
+            // No modo Visão IA em lote, limita a 35 itens por rodada para evitar timeout HTTP
+            $callVisionNow = $useVision && $auditedCount < 35;
+            $res = $auditService->auditLiveItem($row, $live, $callVisionNow);
+            $auditService->persistAuditResult((int) $row->id, $res);
+
+            $results[$row->id] = $res;
+            $auditedCount++;
+
+            if ($callVisionNow) {
+                usleep(250000);
+            }
+        }
+
+        // Recarrega todos para detectar descompasso em cascata na live inteira
+        $allAfter = DB::table('live_items')
+            ->where('live_id', $liveId)
+            ->select(['id', 'codigo_live', 'audit_status', 'audit_score', 'audit_reason', 'audit_detected_code'])
+            ->get();
+
+        $drift = $auditService->detectCascadeDrift($allAfter);
+
+        Cache::forget('loja_popular_sizes_v2');
+        Cache::forget('loja_quick_stats_v2');
+
+        return response()->json([
+            'success'       => true,
+            'audited_count' => $auditedCount,
+            'used_vision'   => $useVision,
+            'drift'         => $drift,
+            'results'       => $results,
+            'message'       => $drift['has_cascade_drift']
+                ? ('🚨 ' . $drift['summary'])
+                : "Auditoria concluída em {$auditedCount} item(ns): {$drift['ok_count']} OK, {$drift['warning_count']} conferir, {$drift['mismatch_count']} incompatível(is).",
+        ]);
+    }
+
+    /**
+     * Audita um único item usando Visão IA (Gemini olha a thumbnail + transcrição vs cadastro).
+     */
+    public function auditSingleCut(Request $request, $liveId, $liveItemId)
+    {
+        $live = Live::findOrFail($liveId);
+        $useVision = $request->boolean('use_vision', true);
+
+        $row = DB::table('live_items')
+            ->join('items', 'live_items.item_id', '=', 'items.id')
+            ->where('live_items.id', $liveItemId)
+            ->where('live_items.live_id', $liveId)
+            ->select([
+                'live_items.*',
+                'items.nome_do_produto as item_nome',
+                'items.descricao as item_descricao',
+                'items.codigo as item_codigo',
+                'items.preco as item_price',
+                'items.image as item_image',
+                'items.marca as item_marca',
+                'items.cor as item_cor',
+                'items.tamanho as item_tamanho',
+            ])
+            ->first();
+
+        if (!$row) {
+            return response()->json(['success' => false, 'message' => 'Item da live não encontrado.'], 404);
+        }
+
+        $auditService = app(LiveCutAuditService::class);
+        $res = $auditService->auditLiveItem($row, $live, $useVision);
+        $auditService->persistAuditResult((int) $liveItemId, $res);
+
+        return response()->json([
+            'success'      => true,
+            'live_item_id' => (int) $liveItemId,
+            'audit'        => $res,
+        ]);
+    }
+
+    /**
+     * Aprova ou reprova manualmente um corte. Reprovar remove o vídeo/thumbnail da live do item na Loja.
+     */
+    public function saveAuditDecision(Request $request, $liveId, $liveItemId)
+    {
+        $validated = $request->validate([
+            'decision' => 'required|in:approve,reject',
+            'reason'   => 'nullable|string|max:500',
+        ]);
+
+        $exists = DB::table('live_items')
+            ->where('id', $liveItemId)
+            ->where('live_id', $liveId)
+            ->exists();
+
+        if (!$exists) {
+            return response()->json(['success' => false, 'message' => 'Item não encontrado nesta live.'], 404);
+        }
+
+        $auditService = app(LiveCutAuditService::class);
+
+        if ($validated['decision'] === 'approve') {
+            $res = $auditService->approveCutForStore((int) $liveItemId);
+            return response()->json([
+                'success'       => true,
+                'audit_status'  => 'approved',
+                'audit_score'   => 100,
+                'has_thumbnail' => $res['has_thumbnail'] ?? false,
+                'message'       => 'Corte aprovado e liberado para a Loja!',
+            ]);
+        }
+
+        $reason = $validated['reason'] ?: 'Corte reprovado manualmente (vídeo não corresponde ao item) — mídia removida da Loja.';
+        $res = $auditService->unlinkCutMediaFromItem((int) $liveItemId, $reason);
+
+        return response()->json([
+            'success'             => true,
+            'audit_status'        => 'rejected',
+            'audit_score'         => 0,
+            'removed_media_count' => $res['removed_media_count'] ?? 0,
+            'cleared_image'       => $res['cleared_image'] ?? false,
+            'message'             => 'Corte reprovado! Vídeo/capa da live removidos da Loja.',
+        ]);
+    }
+
+    /**
+     * Ação em lote: desvincular vídeos/thumbnails da live da Loja (ex: a partir do #311 ou todos os incompatíveis).
+     */
+    public function unlinkCutsFromStore(Request $request, $liveId)
+    {
+        $validated = $request->validate([
+            'mode'       => 'required|in:from_code,mismatches',
+            'start_code' => 'nullable|integer|min:1',
+        ]);
+
+        $auditService = app(LiveCutAuditService::class);
+        $rows = DB::table('live_items')
+            ->where('live_id', $liveId)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $affected = 0;
+        $startCode = $validated['start_code'] ?? null;
+
+        foreach ($rows as $row) {
+            $shouldUnlink = false;
+            $reason = null;
+
+            if ($validated['mode'] === 'from_code' && $startCode !== null) {
+                $codeNum = (int) preg_replace('/\D+/', '', (string) ($row->codigo_live ?? ''));
+                if ($codeNum >= $startCode) {
+                    $shouldUnlink = true;
+                    $reason = "Desvinculado da Loja em lote (descompasso a partir do código #{$startCode}).";
+                }
+            } elseif ($validated['mode'] === 'mismatches') {
+                if (in_array($row->audit_status ?? null, ['mismatch', 'rejected'], true)) {
+                    $shouldUnlink = true;
+                    $reason = $row->audit_reason ?: 'Desvinculado da Loja por incompatibilidade detectada na auditoria.';
+                }
+            }
+
+            if ($shouldUnlink) {
+                $auditService->unlinkCutMediaFromItem((int) $row->id, $reason);
+                $affected++;
+            }
+        }
+
+        return response()->json([
+            'success'  => true,
+            'affected' => $affected,
+            'message'  => $affected > 0
+                ? "{$affected} item(ns) tiveram os vídeos/capas da live removidos da Loja com segurança!"
+                : 'Nenhum item elegível encontrado para desvincular.',
+        ]);
     }
 }

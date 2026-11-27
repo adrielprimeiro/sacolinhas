@@ -78,23 +78,22 @@ Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-Route::get('/register', function () {
-    return view('auth.register');
-})->name('register');
+Route::get('/register', [\App\Http\Controllers\StoreQuickAuthController::class, 'showRegisterForm'])->name('register');
+Route::post('/register', [\App\Http\Controllers\StoreQuickAuthController::class, 'registerClient']);
 
-Route::post('/register', function (Request $request) {
-    $request->validate([
-    ]);
+// Acesso rápido por WhatsApp (OTP) e login AJAX para a Loja Online
+Route::post('/loja/auth/solicitar-codigo', [\App\Http\Controllers\StoreQuickAuthController::class, 'requestWhatsAppCode'])
+    ->middleware('throttle:10,1')
+    ->name('loja.auth.request-code');
+Route::post('/loja/auth/verificar-codigo', [\App\Http\Controllers\StoreQuickAuthController::class, 'verifyWhatsAppCode'])
+    ->middleware('throttle:15,1')
+    ->name('loja.auth.verify-code');
+Route::post('/loja/auth/email-login', [\App\Http\Controllers\StoreQuickAuthController::class, 'ajaxEmailLogin'])
+    ->middleware('throttle:15,1')
+    ->name('loja.auth.email-login');
 
-    $user = \App\Models\User::create([
-        'name' => $request->name,
-        'email' => $request->email,
-        'password' => Hash::make($request->password),
-    ]);
-
-    Auth::login($user);
-    return redirect('/dashboard');
-});
+// Sitemap XML para SEO
+Route::get('/sitemap.xml', [LojaController::class, 'sitemap'])->name('sitemap');
 
 Route::get('/password/reset', function () {
     return view('auth.forgot-password');
@@ -107,29 +106,31 @@ Route::get('/', function () {
         return redirect()->route('dashboard');
     }
 
-    $featuredItems = \App\Models\Item::whereIn('status', ['loja', 'estoque', 'disponivel'])
-        ->where(function ($q) {
-            $q->where('brecho_id', 1)->orWhereNull('brecho_id');
-        })
-        ->where(function ($q) {
-            $q->whereHas('medias', function ($mq) {
-                $mq->where('media_type', 'image');
-            })
-            ->orWhere(function ($sq) {
-                $sq->whereNotNull('image')->where('image', '!=', '');
-            });
-        })
+    $baseQuery = \App\Http\Controllers\LojaController::applyEligibleScope(\App\Models\Item::query());
+
+    $totalAvailable = (clone $baseQuery)->count();
+    $popularSizes = \App\Http\Controllers\LojaController::getPopularSizes(10);
+
+    $featuredItems = (clone $baseQuery)
         ->with(['medias' => function ($mq) {
-            $mq->where('media_type', 'image')
-               ->orderByDesc('is_cover')
+            $mq->orderByDesc('is_cover')
                ->orderBy('position')
                ->orderBy('id');
-        }])
-        ->inRandomOrder()
-        ->limit(8)
+        }, 'categorias'])
+        ->orderByDesc('created_at')
+        ->orderByDesc('id')
+        ->limit(12)
         ->get();
 
-    return view('welcome', compact('featuredItems'));
+    $sacolinhaCount = 0;
+    if (auth()->check()) {
+        $sacolinhaCount = (int) \Illuminate\Support\Facades\DB::table('sacolinhas')
+            ->where('user_id', auth()->id())
+            ->where('status', '!=', 'pedido')
+            ->count();
+    }
+
+    return view('welcome', compact('featuredItems', 'totalAvailable', 'popularSizes', 'sacolinhaCount'));
 });
 
 // Verificação automática de domínio para TikTok Developers
@@ -393,6 +394,10 @@ Route::middleware('auth')->group(function () {
         Route::post('lives/{liveId}/cortes/generate-thumbnails/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'generateSmartThumbnailsAction'])->name('admin.lives.cortes.generate-thumbnails');
         Route::post('lives/{liveId}/cortes/apply-edition/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'applyEdition'])->name('admin.lives.cortes.apply-edition');
         Route::match(['get', 'post'], 'lives/{liveId}/cortes/batch-edition', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'batchApplyEdition'])->name('admin.lives.cortes.batch-edition');
+        Route::post('lives/{liveId}/cortes/audit-batch', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'auditBatchCuts'])->name('admin.lives.cortes.audit-batch');
+        Route::post('lives/{liveId}/cortes/audit-item/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'auditSingleCut'])->name('admin.lives.cortes.audit-item');
+        Route::post('lives/{liveId}/cortes/audit-decision/{liveItemId}', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'saveAuditDecision'])->name('admin.lives.cortes.audit-decision');
+        Route::post('lives/{liveId}/cortes/unlink-from-store', [\App\Http\Controllers\Admin\LiveVideoCutsController::class, 'unlinkCutsFromStore'])->name('admin.lives.cortes.unlink-from-store');
 
         // ===== INTEGRAÇÃO YOUTUBE SHORTS AUTOMÁTICO =====
         Route::get('youtube/connect', [\App\Http\Controllers\Admin\YouTubeIntegrationController::class, 'connect'])->name('admin.youtube.connect');
